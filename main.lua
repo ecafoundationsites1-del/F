@@ -9,8 +9,8 @@ local playerGui = lp:WaitForChild("PlayerGui")
 -- 차단하고 싶은 유저의 이름을 아래 테이블에 따옴표로 감싸서 추가하세요.
 local Blacklist = {
     "EOQY8",
-    "User2",
-    "이름을여기에적으세요"
+    "EOQY8",
+    "EOQY8"
 }
 -------------------------------------------------------
 
