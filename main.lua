@@ -2,18 +2,17 @@ local player = game:GetService("Players").LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local userInputService = game:GetService("UserInputService")
 
--- [0] 키 리스트 및 상태 관리 (서버 내 공유를 위해 StringValue 등을 활용할 수 있으나, 여기선 스크립트 변수로 처리)
--- ※ 주의: 이 방식은 해당 '게임 서버' 내에서만 유효합니다.
+-- [0] 키 리스트 (여기에 키를 추가하세요)
 local keyDatabase = {
-	["KEY-1234"] = {used = false},
-	["KEY-ABCD"] = {used = false},
-	["GUEST-999"] = {used = false},
-	["HELLO-2026"] = {used = false}
+	["KEY-1234"] = true,
+	["카눈"] = true,
+	["GUEST-999"] = true,
+	["HELLO-2026"] = true
 }
 
 -- [1] 메인 UI 생성
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "MyHub"
+screenGui.Name = "MyHubSystem"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
@@ -41,95 +40,113 @@ local function makeDraggable(frame)
 	end)
 end
 
--- [3] 메인 창
+-- [3] 키 인증 창 (Main Frame)
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 400, 0, 250)
-mainFrame.Position = UDim2.new(0.5, -200, 0.5, -125)
-mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.Size = UDim2.new(0, 350, 0, 200)
+mainFrame.Position = UDim2.new(0.5, -175, 0.5, -100)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Parent = screenGui
 makeDraggable(mainFrame)
 
--- 닫기 버튼
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 30, 0, 30)
-closeBtn.Position = UDim2.new(1, -35, 0, 5)
-closeBtn.Text = "X"
-closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-closeBtn.TextColor3 = Color3.new(1, 1, 1)
-closeBtn.Parent = mainFrame
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
+titleLabel.Text = "KEY SYSTEM"
+titleLabel.TextColor3 = Color3.new(1, 1, 1)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Parent = mainFrame
 
--- [4] 최소화된 버튼
-local minBtn = Instance.new("TextButton")
-minBtn.Size = UDim2.new(0, 50, 0, 50)
-minBtn.Position = UDim2.new(0, 10, 0.5, -25)
-minBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-minBtn.Text = "OPEN"
-minBtn.TextColor3 = Color3.new(1, 1, 1)
-minBtn.Visible = false
-minBtn.Parent = screenGui
-makeDraggable(minBtn)
-
--- [5] 키 시스템 UI
 local keyBox = Instance.new("TextBox")
 keyBox.Size = UDim2.new(0.8, 0, 0, 40)
-keyBox.Position = UDim2.new(0.1, 0, 0.4, 0)
-keyBox.PlaceholderText = "키를 입력하세요 (중복 사용 불가)"
+keyBox.Position = UDim2.new(0.1, 0, 0.35, 0)
+keyBox.PlaceholderText = "여기에 키를 입력하세요..."
 keyBox.Text = ""
+keyBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+keyBox.TextColor3 = Color3.new(1, 1, 1)
 keyBox.Parent = mainFrame
 
 local submitBtn = Instance.new("TextButton")
-submitBtn.Size = UDim2.new(0.4, 0, 0, 30)
-submitBtn.Position = UDim2.new(0.3, 0, 0.7, 0)
+submitBtn.Size = UDim2.new(0.6, 0, 0, 40)
+submitBtn.Position = UDim2.new(0.2, 0, 0.7, 0)
 submitBtn.Text = "인증하기"
 submitBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
 submitBtn.TextColor3 = Color3.new(1, 1, 1)
 submitBtn.Parent = mainFrame
 
---- 로직 처리 ---
+-- [4] 실제 기능 창 (Hub Frame - 처음엔 숨김)
+local hubFrame = Instance.new("Frame")
+hubFrame.Size = UDim2.new(0, 400, 0, 300)
+hubFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
+hubFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+hubFrame.Visible = false
+hubFrame.Parent = screenGui
+makeDraggable(hubFrame)
 
-closeBtn.MouseButton1Click:Connect(function()
-	mainFrame.Visible = false
-	minBtn.Visible = true
+local hubTitle = Instance.new("TextLabel")
+hubTitle.Size = UDim2.new(1, 0, 0, 50)
+hubTitle.Text = "★ MAIN HUB ★"
+hubTitle.TextSize = 20
+hubTitle.TextColor3 = Color3.new(1, 1, 1)
+hubTitle.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+hubTitle.Parent = hubFrame
+
+local speedBtn = Instance.new("TextButton")
+speedBtn.Size = UDim2.new(0.8, 0, 0, 45)
+speedBtn.Position = UDim2.new(0.1, 0, 0.3, 0)
+speedBtn.Text = "스피드 핵 (Speed 100)"
+speedBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+speedBtn.TextColor3 = Color3.new(1, 1, 1)
+speedBtn.Parent = hubFrame
+
+local closeHub = Instance.new("TextButton")
+closeHub.Size = UDim2.new(0, 30, 0, 30)
+closeHub.Position = UDim2.new(1, -35, 0, 5)
+closeHub.Text = "X"
+closeHub.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeHub.Parent = hubFrame
+
+--- [로직 처리] ---
+
+-- 기능창 닫기 버튼
+closeHub.MouseButton1Click:Connect(function()
+	hubFrame.Visible = false
 end)
 
-minBtn.MouseButton1Click:Connect(function()
-	minBtn.Visible = false
-	mainFrame.Visible = true
+-- 기능 버튼 작동
+speedBtn.MouseButton1Click:Connect(function()
+	if player.Character and player.Character:FindFirstChild("Humanoid") then
+		player.Character.Humanoid.WalkSpeed = 100
+		speedBtn.Text = "속도 적용됨!"
+		task.wait(1)
+		speedBtn.Text = "스피드 핵 (Speed 100)"
+	end
 end)
 
--- 키 인증 로직
+-- 키 인증 메인 로직
 submitBtn.MouseButton1Click:Connect(function()
-	local enteredKey = keyBox.Text
-	local keyData = keyDatabase[enteredKey]
-
-	if keyData then
-		if keyData.used == false then
-			-- [성공] 키가 존재하고 사용되지 않음
-			keyData.used = true -- 사용됨으로 표시
-			print(enteredKey .. " 인증 성공! 이제 이 키는 사용할 수 없습니다.")
-			
-			submitBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-			submitBtn.Text = "인증 성공!"
-			
-			task.wait(1.5)
-			-- 여기에 실제 허브 기능 활성화 코드 작성
-			-- mainFrame:Destroy() -- 인증 후 창을 닫으려면 사용
-		else
-			-- [실패] 이미 사용된 키
-			submitBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-			submitBtn.Text = "이미 사용된 키입니다!"
-			task.wait(1.5)
-			submitBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-			submitBtn.Text = "인증하기"
+	-- 입력값에서 공백 제거 및 대문자로 변환
+	local enteredKey = string.upper(string.gsub(keyBox.Text, "%s+", ""))
+	
+	local isCorrect = false
+	-- 데이터베이스의 키들도 대문자로 비교
+	for key, _ in pairs(keyDatabase) do
+		if string.upper(key) == enteredKey then
+			isCorrect = true
+			break
 		end
+	end
+
+	if isCorrect then
+		submitBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+		submitBtn.Text = "인증 성공!"
+		task.wait(1)
+		mainFrame.Visible = false
+		hubFrame.Visible = true
 	else
-		-- [실패] 존재하지 않는 키
 		submitBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 		submitBtn.Text = "잘못된 키입니다!"
-		task.wait(1.5)
+		task.wait(1)
 		submitBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
 		submitBtn.Text = "인증하기"
 	end
 end)
-
