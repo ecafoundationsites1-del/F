@@ -1,118 +1,108 @@
--- 서비스 및 로컬 변수
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local lp = Players.LocalPlayer
-local playerGui = lp:WaitForChild("PlayerGui")
+local player = game:GetService("Players").LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local userInputService = game:GetService("UserInputService")
 
--- [기존 UI 제거]
-local uiName = "ECA_V4_Final_Fixed"
-local oldGui = gethui():FindFirstChild(uiName) or game:GetService("CoreGui"):FindFirstChild(uiName)
-if oldGui then oldGui:Destroy() end
+-- [1] 메인 UI 생성
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MyHub"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
 
--------------------------------------------------------
--- [1. 안티치트 우회 시스템 (Bypass Logic)]
--------------------------------------------------------
--- 주의: 이 로직은 로딩 중에 백그라운드에서 실행됩니다.
-local function AntiCheatBypass()
-    local gmt = getrawmetatable(game)
-    setreadonly(gmt, false)
-    local oldNamecall = gmt.__namecall
-
-    -- 1. 원격 이벤트 감지 우회 (Namecall Hooking)
-    gmt.__namecall = newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        local args = {...}
-
-        -- 안티치트가 자주 사용하는 키워드 차단
-        if method == "FireServer" and (tostring(self):find("Check") or tostring(self):find("Ban") or tostring(self):find("Cheat")) then
-            return nil -- 서버로 정보를 보내지 않음
-        end
-        return oldNamecall(self, unpack(args))
-    end)
-    
-    -- 2. WalkSpeed / JumpPower 변조 감지 우회
-    local oldIndex = gmt.__index
-    gmt.__index = newcclosure(function(t, k)
-        if not checkcaller() and t:IsA("Humanoid") and (k == "WalkSpeed" or k == "JumpPower") then
-            if k == "WalkSpeed" then return 16 end
-            if k == "JumpPower" then return 50 end
-        end
-        return oldIndex(t, k)
-    end)
-    
-    setreadonly(gmt, true)
+-- [2] 드래그 기능 함수 (재사용 가능)
+local function makeDraggable(frame)
+	local dragging, dragInput, dragStart, startPos
+	frame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+			dragStart = input.Position
+			startPos = frame.Position
+		end
+	end)
+	frame.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
+	end)
+	userInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+	userInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+	end)
 end
 
--------------------------------------------------------
--- [2. 로딩 UI 생성]
--------------------------------------------------------
-local screenGui = Instance.new("ScreenGui", playerGui)
-screenGui.Name = "LoadingScreen_ECA"
-
-local mainFrame = Instance.new("Frame", screenGui)
-mainFrame.Size = UDim2.new(0, 420, 0, 180)
-mainFrame.Position = UDim2.new(0.5, -210, 0.5, -90)
-mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+-- [3] 메인 창 (Main Frame)
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 400, 0, 250)
+mainFrame.Position = UDim2.new(0.5, -200, 0.5, -125)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+makeDraggable(mainFrame)
 
--- 테두리 효과
-local stroke = Instance.new("UIStroke", mainFrame)
-stroke.Color = Color3.fromRGB(0, 255, 127)
-stroke.Thickness = 1.5
+-- 닫기 버튼 (X)
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -35, 0, 5)
+closeBtn.Text = "X"
+closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.Parent = mainFrame
 
-local logo = Instance.new("ImageLabel", mainFrame)
-logo.Size = UDim2.new(0, 60, 0, 60)
-logo.Position = UDim2.new(0.5, -30, 0.15, 0)
-logo.BackgroundTransparency = 1
-logo.Image = "rbxassetid://129650208804431"
+-- [4] 최소화된 버튼 (Small UI)
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 50, 0, 50)
+minBtn.Position = UDim2.new(0, 10, 0.5, -25)
+minBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+minBtn.Text = "OPEN"
+minBtn.TextColor3 = Color3.new(1, 1, 1)
+minBtn.Visible = false
+minBtn.Parent = screenGui
+makeDraggable(minBtn)
 
-local loadingBg = Instance.new("Frame", mainFrame)
-loadingBg.Size = UDim2.new(0.8, 0, 0, 8)
-loadingBg.Position = UDim2.new(0.1, 0, 0.65, 0)
-loadingBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+-- [5] 키 시스템 UI (Main Frame 내부에 생성)
+local keyBox = Instance.new("TextBox")
+keyBox.Size = UDim2.new(0.8, 0, 0, 40)
+keyBox.Position = UDim2.new(0.1, 0, 0.4, 0)
+keyBox.PlaceholderText = "여기에 키를 입력하세요..."
+keyBox.Text = ""
+keyBox.Parent = mainFrame
 
-local loadingBar = Instance.new("Frame", loadingBg)
-loadingBar.Size = UDim2.new(0, 0, 1, 0)
-loadingBar.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
-loadingBar.BorderSizePixel = 0
+local submitBtn = Instance.new("TextButton")
+submitBtn.Size = UDim2.new(0.4, 0, 0, 30)
+submitBtn.Position = UDim2.new(0.3, 0, 0.7, 0)
+submitBtn.Text = "인증하기"
+submitBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+submitBtn.Parent = mainFrame
 
-local statusText = Instance.new("TextLabel", mainFrame)
-statusText.Size = UDim2.new(1, 0, 0, 20)
-statusText.Position = UDim2.new(0, 0, 0.75, 0)
-statusText.BackgroundTransparency = 1
-statusText.TextColor3 = Color3.fromRGB(255, 255, 255)
-statusText.TextSize = 14
-statusText.Font = Enum.Font.Code
-statusText.Text = "시스템 확인 중..."
+--- 로직 처리 ---
 
--------------------------------------------------------
--- [3. 순차적 우회 및 로딩 실행]
--------------------------------------------------------
-local function startLoading()
-    local steps = {
-        {0.2, "보안 프로토콜 분석 중..."},
-        {0.4, "안티치트 시그니처 우회 중... (Namecall Hook)"},
-        {0.6, "메타테이블 보호막 생성 중..."},
-        {0.8, "환경 변수 무결성 체크 우회 중..."},
-        {1.0, "준비 완료! 허브를 불러옵니다."}
-    }
+-- X 버튼 누를 때: 메인 숨기고 작은 UI 표시
+closeBtn.MouseButton1Click:Connect(function()
+	mainFrame.Visible = false
+	minBtn.Visible = true
+end)
 
-    -- 로직 실행
-    pcall(AntiCheatBypass)
+-- 작은 UI 누를 때: 다시 메인 표시
+minBtn.MouseButton1Click:Connect(function()
+	minBtn.Visible = false
+	mainFrame.Visible = true
+end)
 
-    for _, step in ipairs(steps) do
-        loadingBar:TweenSize(UDim2.new(step[1], 0, 1, 0), "Out", "Quad", 1.5)
-        statusText.Text = step[2]
-        task.wait(1.8) -- 각 단계마다 약 1.8초 소요 (총 약 9~10초)
-    end
-
-    task.wait(0.5)
-    screenGui:Destroy()
-    
-    -- 여기에 기존 메인 UI 코드를 실행하는 함수를 넣으세요.
-    -- 예: LoadMainHub()
-end
-
-task.spawn(startLoading)
+-- 키 인증 로직 (예시)
+submitBtn.MouseButton1Click:Connect(function()
+	local enteredKey = keyBox.Text
+	-- 실제 구현 시 HttpService를 통해 서버의 키값과 비교해야 함
+	if enteredKey == "TEST-KEY-123" then
+		print("인증 성공!")
+		submitBtn.Text = "성공!"
+		task.wait(1)
+		-- 여기에 허브의 실제 기능(스크립트 실행 등) 추가
+	else
+		submitBtn.Text = "틀린 키입니다!"
+		task.wait(1)
+		submitBtn.Text = "인증하기"
+	end
+end)
 
