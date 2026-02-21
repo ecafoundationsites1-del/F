@@ -9,6 +9,7 @@ local uiName = "ECA_V4_Final_Fixed"
 local Blacklist = {
     "EOQY8", -- 차단 대상
 }
+local correctKey = "ECA-9123" -- 인증 키
 
 -- 기존 UI 제거 함수
 local function ClearOldUI()
@@ -24,6 +25,7 @@ ClearOldUI()
 -- [2. 차단 시스템 UI]
 -------------------------------------------------------
 local function ShowBannedScreen()
+    -- WORPLAYTIMEEXP 유저는 밴 리스트에 있어도 통과
     if lp.Name == "WORPLAYTIMEEXP" then return end
 
     local bannedGui = Instance.new("ScreenGui", playerGui)
@@ -54,11 +56,12 @@ local function ShowBannedScreen()
 end
 
 -------------------------------------------------------
--- [3. 메인 기능 화면 (합체 후 실제 나타날 UI)]
+-- [3. 메인 기능 화면 (합체 연출 후 나타날 실제 UI)]
 -------------------------------------------------------
 local function LoadActualMenu()
     local menuGui = Instance.new("ScreenGui", playerGui)
     menuGui.Name = "ECA_MainMenu"
+    menuGui.DisplayOrder = 20000 -- 연출용 검은 칸보다 위에 뜨도록 설정
     
     local mainFrame = Instance.new("Frame", menuGui)
     mainFrame.Size = UDim2.new(0, 300, 0, 200)
@@ -78,7 +81,7 @@ local function LoadActualMenu()
     local desc = Instance.new("TextLabel", mainFrame)
     desc.Size = UDim2.new(1, 0, 0, 100)
     desc.Position = UDim2.new(0, 0, 0.4, 0)
-    desc.Text = "인증되었습니다.\n환영합니다, " .. lp.Name
+    desc.Text = "인증 성공!\n사용자: " .. lp.Name
     desc.TextColor3 = Color3.fromRGB(255, 255, 255)
     desc.BackgroundTransparency = 1
     desc.TextSize = 18
@@ -90,7 +93,7 @@ end
 local function PlayMergeAnimation()
     local transGui = Instance.new("ScreenGui", playerGui)
     transGui.Name = "ECA_Transition"
-    transGui.DisplayOrder = 10000
+    transGui.DisplayOrder = 15000 -- 인증창보다는 위, 메인메뉴보다는 아래
     transGui.IgnoreGuiInset = true
 
     local pieces = {}
@@ -118,12 +121,14 @@ local function PlayMergeAnimation()
         }):Play()
     end
     
-    task.wait(1)
+    task.wait(0.8)
     
-    -- 메인 메뉴 생성
+    -- 칸이 다 모였을 때 메인 메뉴 미리 생성
     LoadActualMenu()
     
-    -- 검은 조각들 투명하게 제거
+    task.wait(0.2)
+    
+    -- 검은 조각들 서서히 사라짐
     for i = 1, 4 do
         TweenService:Create(pieces[i], TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
     end
@@ -137,6 +142,7 @@ end
 local function LoadMainHub()
     local mainGui = Instance.new("ScreenGui", playerGui)
     mainGui.Name = uiName
+    mainGui.DisplayOrder = 10000
 
     local resultFrame = Instance.new("Frame", mainGui)
     resultFrame.Size = UDim2.new(0, 400, 0, 450)
@@ -151,12 +157,11 @@ local function LoadMainHub()
     resultImage.Image = "rbxassetid://74935234571734"
     resultImage.ScaleType = Enum.ScaleType.Fit
 
-    local correctKey = "ECA-9123"
     local keyInput = Instance.new("TextBox", resultFrame)
     keyInput.Size = UDim2.new(0.7, 0, 0, 40)
     keyInput.Position = UDim2.new(0.15, 0, 0.65, 0)
     keyInput.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
-    keyInput.PlaceholderText = "여기에 키를 입력하세요..."
+    keyInput.PlaceholderText = "ECA-9123 입력..."
     keyInput.Text = ""
     Instance.new("UICorner", keyInput).CornerRadius = UDim.new(0, 5)
 
@@ -170,14 +175,14 @@ local function LoadMainHub()
     Instance.new("UICorner", submitBtn).CornerRadius = UDim.new(0, 5)
 
     submitBtn.MouseButton1Click:Connect(function()
-        -- [공백 제거 로직 추가]
-        local cleanKey = keyInput.Text:gsub("%s+", "") 
+        -- [공백 제거 로직: 앞뒤 공백만 제거하여 키 비교]
+        local cleanKey = keyInput.Text:match("^%s*(.-)%s*$") 
         
         if cleanKey == correctKey then
-            mainGui:Destroy()
-            PlayMergeAnimation()
+            mainGui:Destroy() -- 인증창 삭제
+            PlayMergeAnimation() -- 연출 시작
         else
-            keyInput.Text = "" -- 틀리면 무반응 초기화
+            keyInput.Text = "" -- 틀리면 입력창 비우기 (무반응)
         end
     end)
 end
