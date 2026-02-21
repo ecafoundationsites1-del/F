@@ -1,3 +1,4 @@
+
 -- 서비스 및 로컬 변수
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -7,6 +8,7 @@ local playerGui = lp:WaitForChild("PlayerGui")
 
 -- [1. 설정 및 변수] -----------------------------------------------
 local uiName = "ECA_V4_Complete_Edition"
+local Blacklist = { "EOQY8" } -- 밴 유저 리스트
 local correctKey = "ECA-9123"
 local visionEnabled = false
 
@@ -38,13 +40,53 @@ end
 
 -- 기존 UI 청소
 for _, v in pairs(playerGui:GetChildren()) do
-    if v.Name == uiName or v.Name == "LoadingScreen_ECA" or v.Name == "ECA_MainMenu" or v.Name == "ECA_Transition" then
+    if v.Name == uiName or v.Name == "LoadingScreen_ECA" or v.Name == "ECA_MainMenu" or v.Name == "ECA_Transition" or v.Name == "ECA_Banned_System" then
         v:Destroy()
     end
 end
 
 -------------------------------------------------------
--- [2. 메인 사이드바 메뉴]
+-- [2. 밴 전용 화면 표시 함수]
+-------------------------------------------------------
+local function ShowBanScreen()
+    local bannedGui = Instance.new("ScreenGui", playerGui)
+    bannedGui.Name = "ECA_Banned_System"
+    bannedGui.IgnoreGuiInset = true
+    bannedGui.DisplayOrder = 99999
+
+    local bg = Instance.new("Frame", bannedGui)
+    bg.Size = UDim2.new(1, 0, 1, 0)
+    bg.BackgroundColor3 = Color3.fromRGB(15, 0, 0)
+
+    local banImg = Instance.new("ImageLabel", bg)
+    banImg.Size = UDim2.new(0, 250, 0, 250)
+    banImg.Position = UDim2.new(0.5, -125, 0.4, -125)
+    -- [1번째 rbxassetid: 밴 화면용]
+    banImg.Image = "rbxassetid://92988766959361" 
+    banImg.ImageColor3 = Color3.fromRGB(255, 0, 0) -- 빨간색 필터
+    banImg.BackgroundTransparency = 1
+
+    local banText = Instance.new("TextLabel", bg)
+    banText.Size = UDim2.new(1, 0, 0, 50)
+    banText.Position = UDim2.new(0, 0, 0.65, 0)
+    banText.Text = "ACCESS DENIED"
+    banText.TextColor3 = Color3.fromRGB(255, 0, 0)
+    banText.TextSize = 60
+    banText.Font = Enum.Font.SourceSansBold
+    banText.BackgroundTransparency = 1
+    
+    local subText = Instance.new("TextLabel", bg)
+    subText.Size = UDim2.new(1, 0, 0, 30)
+    subText.Position = UDim2.new(0, 0, 0.75, 0)
+    subText.Text = "YOU ARE PERMANENTLY BLACKLISTED"
+    subText.TextColor3 = Color3.fromRGB(150, 150, 150)
+    subText.TextSize = 20
+    subText.Font = Enum.Font.SourceSans
+    subText.BackgroundTransparency = 1
+end
+
+-------------------------------------------------------
+-- [3. 메인 사이드바 메뉴]
 -------------------------------------------------------
 local function LoadActualMenu()
     local menuGui = Instance.new("ScreenGui", playerGui)
@@ -100,7 +142,7 @@ local function LoadActualMenu()
 end
 
 -------------------------------------------------------
--- [3. 인증 성공 시 합체 연출]
+-- [4. 인증 성공 시 합체 연출]
 -------------------------------------------------------
 local function PlayMergeAnimation()
     local transGui = Instance.new("ScreenGui", playerGui)
@@ -130,7 +172,7 @@ local function PlayMergeAnimation()
 end
 
 -------------------------------------------------------
--- [4. 메인 허브 (인증창)]
+-- [5. 메인 허브 (인증창)]
 -------------------------------------------------------
 local function LoadMainHub()
     local mainGui = Instance.new("ScreenGui", playerGui)
@@ -146,7 +188,8 @@ local function LoadMainHub()
     local img = Instance.new("ImageLabel", frame)
     img.Size = UDim2.new(0, 320, 0, 240)
     img.Position = UDim2.new(0.5, -160, 0.05, 0)
-    img.Image = "rbxassetid://74935234571734"
+    -- [2번째 rbxassetid: 인증창용]
+    img.Image = "rbxassetid://74935234571734" 
     img.BackgroundTransparency = 1
 
     local input = Instance.new("TextBox", frame)
@@ -165,6 +208,15 @@ local function LoadMainHub()
     btn.Font = Enum.Font.SourceSansBold
 
     btn.MouseButton1Click:Connect(function()
+        -- 인증 시 블랙리스트 체크 (보안 강화)
+        for _, name in pairs(Blacklist) do
+            if string.lower(lp.Name) == string.lower(name) then
+                mainGui:Destroy()
+                ShowBanScreen()
+                return
+            end
+        end
+
         if input.Text:match("^%s*(.-)%s*$") == correctKey then
             mainGui:Destroy()
             PlayMergeAnimation()
@@ -175,9 +227,17 @@ local function LoadMainHub()
 end
 
 -------------------------------------------------------
--- [5. 로딩 UI (메시지 수정 적용)]
+-- [6. 로딩 UI 및 초기 밴 체크]
 -------------------------------------------------------
 local function startLoading()
+    -- 초기 접속 시 블랙리스트 체크
+    for _, name in pairs(Blacklist) do
+        if string.lower(lp.Name) == string.lower(name) then
+            ShowBanScreen()
+            return 
+        end
+    end
+
     local screenGui = Instance.new("ScreenGui", playerGui)
     screenGui.Name = "LoadingScreen_ECA"
     screenGui.IgnoreGuiInset = true
@@ -194,15 +254,14 @@ local function startLoading()
     Instance.new("UICorner", mainFrame)
     Instance.new("UIStroke", mainFrame).Color = Color3.fromRGB(0, 255, 127)
 
-    -- 로고
     local logo = Instance.new("ImageLabel", mainFrame)
     logo.Size = UDim2.new(0, 140, 0, 140)
     logo.Position = UDim2.new(0.5, -70, 0.05, 0)
-    logo.Image = "rbxassetid://74935234571734"
+    -- [3번째 rbxassetid: 로딩 화면용]
+    logo.Image = "rbxassetid://129650208804431" 
     logo.BackgroundTransparency = 1
     logo.ZIndex = 5
 
-    -- 안티치트 고정 문구
     local bypassTxt = Instance.new("TextLabel", mainFrame)
     bypassTxt.Size = UDim2.new(1, 0, 0, 20)
     bypassTxt.Position = UDim2.new(0, 0, 0.55, 0)
@@ -221,7 +280,6 @@ local function startLoading()
     title.TextSize = 22
     title.BackgroundTransparency = 1
 
-    -- 변화하는 상태 메시지
     local status = Instance.new("TextLabel", mainFrame)
     status.Size = UDim2.new(1, 0, 0, 20)
     status.Position = UDim2.new(0, 0, 0.75, 0)
@@ -241,7 +299,6 @@ local function startLoading()
     bar.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
     bar.BorderSizePixel = 0
 
-    -- 로딩 시뮬레이션 (요청하신 단계 적용)
     task.spawn(function()
         local steps = {
             {s = "1단계 안티치트 우회중", c = Color3.fromRGB(255, 50, 50)},
@@ -261,6 +318,5 @@ local function startLoading()
     end)
 end
 
--- 최종 실행
+-- 실행 시작
 startLoading()
-
