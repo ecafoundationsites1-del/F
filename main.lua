@@ -5,12 +5,12 @@ local Lighting = game:GetService("Lighting")
 local lp = Players.LocalPlayer
 local playerGui = lp:WaitForChild("PlayerGui")
 
--- [1. 설정 및 차단 리스트] -----------------------------------------
+-- [1. 설정 및 차단 리스트]
 local uiName = "ECA_V4_Final_Fixed"
 local Blacklist = { "EOQY8" }
 local correctKey = "ECA-9123"
 
--- [2. 기능 관련 변수] ---------------------------------------------
+-- [2. 기능 관련 변수]
 local visionEnabled = false
 local thermalEffect = Instance.new("ColorCorrectionEffect")
 thermalEffect.Brightness = 0.1
@@ -35,7 +35,7 @@ local function UpdateESP()
             highlight.FillColor = Color3.fromRGB(0, 255, 0)
             highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
             highlight.OutlineTransparency = 0
-            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- 벽 뚫고 보기
         end
     end
 end
@@ -51,12 +51,12 @@ end
 ClearOldUI()
 
 -------------------------------------------------------
--- [3. 메인 기능 화면 (사이드바 메뉴)]
+-- [3. 메인 기능 화면 (사이드바 및 시야 기능)]
 -------------------------------------------------------
 local function LoadActualMenu()
     local menuGui = Instance.new("ScreenGui", playerGui)
     menuGui.Name = "ECA_MainMenu"
-    menuGui.DisplayOrder = 20000 -- 연출보다 위에 뜨도록 설정
+    menuGui.DisplayOrder = 20000 
     
     local mainFrame = Instance.new("Frame", menuGui)
     mainFrame.Size = UDim2.new(0, 550, 0, 350)
@@ -93,7 +93,7 @@ local function LoadActualMenu()
     -- 기능 토글 버튼 (메인 영역)
     local toggleBtn = Instance.new("TextButton", mainFrame)
     toggleBtn.Size = UDim2.new(0, 250, 0, 60)
-    toggleBtn.Position = UDim2.new(0.45, 0, 0.4, 0) -- 사이드바 옆 중앙 배치
+    toggleBtn.Position = UDim2.new(0.45, 0, 0.4, 0)
     toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
     toggleBtn.Text = "열화상 & 벽뚫: OFF"
     toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -153,7 +153,7 @@ local function PlayMergeAnimation()
     end
     
     task.wait(0.8)
-    LoadActualMenu() -- 사이드바 메뉴 호출
+    LoadActualMenu() -- 알림창 대신 진짜 메뉴 즉시 호출
     task.wait(0.2)
     
     for i = 1, 4 do
@@ -205,7 +205,7 @@ local function LoadMainHub()
         local cleanKey = keyInput.Text:match("^%s*(.-)%s*$") 
         if cleanKey == correctKey then
             mainGui:Destroy() -- 인증창 삭제
-            PlayMergeAnimation() -- 연출 후 메뉴로 연결
+            PlayMergeAnimation() -- 연출 후 메뉴로 자동 연결
         else
             keyInput.Text = ""
         end
