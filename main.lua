@@ -1,4 +1,3 @@
-
 -- 서비스 및 로컬 변수
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -8,7 +7,7 @@ local playerGui = lp:WaitForChild("PlayerGui")
 
 -- [1. 설정 및 변수] -----------------------------------------------
 local uiName = "ECA_V4_Complete_Edition"
-local Blacklist = { "EOQY8" } -- 밴 유저 리스트
+local Blacklist = { "EOQY8" }
 local correctKey = "ECA-9123"
 local visionEnabled = false
 
@@ -21,8 +20,38 @@ thermalEffect.TintColor = Color3.fromRGB(150, 200, 255)
 thermalEffect.Enabled = false
 thermalEffect.Parent = Lighting
 
--- ESP(벽뚫 테두리) 함수
+-------------------------------------------------------
+-- [추가된 핵심 기능: 환경 파트 색상 변경]
+-------------------------------------------------------
+local function UpdateEnvironmentColors()
+    for _, obj in pairs(game.Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            -- 1. 플레이어 캐릭터 파트는 제외 (ESP 테두리 유지를 위해)
+            local isCharacterPart = false
+            for _, player in pairs(Players:GetPlayers()) do
+                if player.Character and obj:IsDescendantOf(player.Character) then
+                    isCharacterPart = true
+                    break
+                end
+            end
+
+            if not isCharacterPart then
+                -- 2. Water 파트는 빨간색
+                if obj.Name == "Water" then
+                    obj.Color = Color3.fromRGB(255, 0, 0)
+                else
+                    -- 3. 그 외 파트는 노랑/빨강 랜덤
+                    local rand = math.random(1, 2)
+                    obj.Color = (rand == 1) and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(255, 0, 0)
+                end
+            end
+        end
+    end
+end
+
+-- ESP 및 환경 업데이트 함수
 local function UpdateESP()
+    -- 플레이어 테두리 (기존 기능)
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= lp and player.Character then
             local highlight = player.Character:FindFirstChild("ECA_ESP")
@@ -35,6 +64,11 @@ local function UpdateESP()
             highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
             highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
         end
+    end
+
+    -- 내가 말한 기능: 환경 색상 변경 (기능 추가됨)
+    if visionEnabled then
+        UpdateEnvironmentColors()
     end
 end
 
@@ -61,9 +95,8 @@ local function ShowBanScreen()
     local banImg = Instance.new("ImageLabel", bg)
     banImg.Size = UDim2.new(0, 250, 0, 250)
     banImg.Position = UDim2.new(0.5, -125, 0.4, -125)
-    -- [1번째 rbxassetid: 밴 화면용]
-    banImg.Image = "rbxassetid://92988766959361" 
-    banImg.ImageColor3 = Color3.fromRGB(255, 0, 0) -- 빨간색 필터
+    banImg.Image = "rbxassetid://74935234571734" 
+    banImg.ImageColor3 = Color3.fromRGB(255, 0, 0)
     banImg.BackgroundTransparency = 1
 
     local banText = Instance.new("TextLabel", bg)
@@ -188,7 +221,6 @@ local function LoadMainHub()
     local img = Instance.new("ImageLabel", frame)
     img.Size = UDim2.new(0, 320, 0, 240)
     img.Position = UDim2.new(0.5, -160, 0.05, 0)
-    -- [2번째 rbxassetid: 인증창용]
     img.Image = "rbxassetid://74935234571734" 
     img.BackgroundTransparency = 1
 
@@ -208,7 +240,6 @@ local function LoadMainHub()
     btn.Font = Enum.Font.SourceSansBold
 
     btn.MouseButton1Click:Connect(function()
-        -- 인증 시 블랙리스트 체크 (보안 강화)
         for _, name in pairs(Blacklist) do
             if string.lower(lp.Name) == string.lower(name) then
                 mainGui:Destroy()
@@ -230,7 +261,6 @@ end
 -- [6. 로딩 UI 및 초기 밴 체크]
 -------------------------------------------------------
 local function startLoading()
-    -- 초기 접속 시 블랙리스트 체크
     for _, name in pairs(Blacklist) do
         if string.lower(lp.Name) == string.lower(name) then
             ShowBanScreen()
@@ -257,8 +287,7 @@ local function startLoading()
     local logo = Instance.new("ImageLabel", mainFrame)
     logo.Size = UDim2.new(0, 140, 0, 140)
     logo.Position = UDim2.new(0.5, -70, 0.05, 0)
-    -- [3번째 rbxassetid: 로딩 화면용]
-    logo.Image = "rbxassetid://129650208804431" 
+    logo.Image = "rbxassetid://74935234571734" 
     logo.BackgroundTransparency = 1
     logo.ZIndex = 5
 
@@ -320,3 +349,4 @@ end
 
 -- 실행 시작
 startLoading()
+
