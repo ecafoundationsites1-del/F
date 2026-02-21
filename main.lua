@@ -1,4 +1,4 @@
--- 서비스 및 로컬 변수
+-- [서비스 및 로컬 변수]
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
@@ -11,6 +11,10 @@ local Blacklist = { "EOQY8" }
 local correctKey = "ECA-9123"
 local visionEnabled = false
 
+-- 팀 관련 상태 변수
+local currentTeamName = nil
+local isTeamLeader = false
+
 -- 열화상 효과 설정
 local thermalEffect = Instance.new("ColorCorrectionEffect")
 thermalEffect.Brightness = 0.1
@@ -21,12 +25,13 @@ thermalEffect.Enabled = false
 thermalEffect.Parent = Lighting
 
 -------------------------------------------------------
--- [추가된 핵심 기능: 환경 색상 1회 랜덤 변경]
+-- [기능 함수들]
 -------------------------------------------------------
-local function ApplyRandomColors()
+
+-- 환경 색상 변경
+local function UpdateEnvironmentColors()
     for _, obj in pairs(game.Workspace:GetDescendants()) do
         if obj:IsA("BasePart") then
-            -- 플레이어 캐릭터 파트는 제외
             local isCharacterPart = false
             for _, player in pairs(Players:GetPlayers()) do
                 if player.Character and obj:IsDescendantOf(player.Character) then
@@ -34,12 +39,10 @@ local function ApplyRandomColors()
                     break
                 end
             end
-
             if not isCharacterPart then
                 if obj.Name == "Water" then
-                    obj.Color = Color3.fromRGB(255, 0, 0) -- Water는 빨강
+                    obj.Color = Color3.fromRGB(255, 0, 0)
                 else
-                    -- 노랑 또는 빨강으로 1회 랜덤 설정
                     local rand = math.random(1, 2)
                     obj.Color = (rand == 1) and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(255, 0, 0)
                 end
@@ -48,7 +51,7 @@ local function ApplyRandomColors()
     end
 end
 
--- ESP 업데이트 함수 (플레이어 테두리용)
+-- ESP 업데이트
 local function UpdateESP()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= lp and player.Character then
@@ -63,17 +66,60 @@ local function UpdateESP()
             highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
         end
     end
+    if visionEnabled then UpdateEnvironmentColors() end
 end
 
--- 기존 UI 청소
-for _, v in pairs(playerGui:GetChildren()) do
-    if v.Name == uiName or v.Name == "LoadingScreen_ECA" or v.Name == "ECA_MainMenu" or v.Name == "ECA_Transition" or v.Name == "ECA_Banned_System" then
-        v:Destroy()
+-- 무전기 하단 메시지 UI
+local function ShowRadioMessage(senderName, message)
+    local radioGui = playerGui:FindFirstChild("ECA_RadioDisplay")
+    if not radioGui then
+        radioGui = Instance.new("ScreenGui", playerGui)
+        radioGui.Name = "ECA_RadioDisplay"
     end
+
+    local msgFrame = Instance.new("Frame", radioGui)
+    msgFrame.Size = UDim2.new(0, 350, 0, 45)
+    msgFrame.Position = UDim2.new(0.5, -175, 1, 10) -- 시작 위치 (밑으로 숨김)
+    msgFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    msgFrame.BackgroundTransparency = 0.2
+    Instance.new("UICorner", msgFrame)
+    local stroke = Instance.new("UIStroke", msgFrame)
+    stroke.Color = Color3.fromRGB(0, 255, 127)
+    stroke.Thickness = 1.5
+
+    local txt = Instance.new("TextLabel", msgFrame)
+    txt.Size = UDim2.new(1, -20, 1, 0)
+    txt.Position = UDim2.new(0, 10, 0, 0)
+    txt.BackgroundTransparency = 1
+    txt.Text = "<b>[RADIO] " .. senderName .. "</b>: " .. message
+    txt.TextColor3 = Color3.fromRGB(255, 255, 255)
+    txt.TextSize = 16
+    txt.RichText = true
+    txt.Font = Enum.Font.SourceSans
+    txt.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- 등장 애니메이션
+    msgFrame:TweenPosition(UDim2.new(0.5, -175, 0.85, 0), "Out", "Back", 0.5, true)
+    
+    task.delay(4, function()
+        msgFrame:TweenPosition(UDim2.new(0.5, -175, 1, 10), "In", "Sine", 0.5, true, function()
+            msgFrame:Destroy()
+        end)
+    end)
 end
+
+-- 채팅 감지 로직
+lp.Chatted:Connect(function(msg)
+    if currentTeamName and msg:sub(1, 6) == "/team " then
+        local actualMsg = msg:sub(7)
+        if actualMsg ~= "" then
+            ShowRadioMessage(lp.Name, actualMsg)
+        end
+    end
+end)
 
 -------------------------------------------------------
--- [2. 밴 전용 화면 표시 함수]
+-- [2. 밴 화면]
 -------------------------------------------------------
 local function ShowBanScreen()
     local bannedGui = Instance.new("ScreenGui", playerGui)
@@ -85,25 +131,18 @@ local function ShowBanScreen()
     bg.Size = UDim2.new(1, 0, 1, 0)
     bg.BackgroundColor3 = Color3.fromRGB(15, 0, 0)
 
-    local banImg = Instance.new("ImageLabel", bg)
-    banImg.Size = UDim2.new(0, 250, 0, 250)
-    banImg.Position = UDim2.new(0.5, -125, 0.4, -125)
-    banImg.Image = "rbxassetid://74935234571734" 
-    banImg.ImageColor3 = Color3.fromRGB(255, 0, 0)
-    banImg.BackgroundTransparency = 1
-
     local banText = Instance.new("TextLabel", bg)
     banText.Size = UDim2.new(1, 0, 0, 50)
-    banText.Position = UDim2.new(0, 0, 0.65, 0)
-    banText.Text = "ACCESS DENIED"
+    banText.Position = UDim2.new(0, 0, 0.5, -25)
+    banText.Text = "ACCESS DENIED\nBLACKISTED"
     banText.TextColor3 = Color3.fromRGB(255, 0, 0)
-    banText.TextSize = 60
+    banText.TextSize = 50
     banText.Font = Enum.Font.SourceSansBold
     banText.BackgroundTransparency = 1
 end
 
 -------------------------------------------------------
--- [3. 메인 사이드바 메뉴]
+-- [3. 메인 메뉴 (사이드바 + 무전기)]
 -------------------------------------------------------
 local function LoadActualMenu()
     local menuGui = Instance.new("ScreenGui", playerGui)
@@ -116,14 +155,35 @@ local function LoadActualMenu()
     mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     Instance.new("UICorner", mainFrame)
 
+    -- 사이드바
     local sideBar = Instance.new("Frame", mainFrame)
     sideBar.Size = UDim2.new(0, 150, 1, 0)
     sideBar.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
     Instance.new("UICorner", sideBar)
 
-    local toggle = Instance.new("TextButton", mainFrame)
+    local title = Instance.new("TextLabel", sideBar)
+    title.Size = UDim2.new(1, 0, 0, 50)
+    title.Text = "ECA V4 PREMIUM"
+    title.TextColor3 = Color3.fromRGB(0, 255, 127)
+    title.TextSize = 16
+    title.Font = Enum.Font.SourceSansBold
+    title.BackgroundTransparency = 1
+
+    -- 컨텐츠 영역 부모
+    local contentFrame = Instance.new("Frame", mainFrame)
+    contentFrame.Size = UDim2.new(1, -160, 1, -20)
+    contentFrame.Position = UDim2.new(0, 155, 0, 10)
+    contentFrame.BackgroundTransparency = 1
+
+    -- [페이지 1: 비주얼]
+    local visualPage = Instance.new("Frame", contentFrame)
+    visualPage.Size = UDim2.new(1, 0, 1, 0)
+    visualPage.BackgroundTransparency = 1
+    visualPage.Visible = true
+
+    local toggle = Instance.new("TextButton", visualPage)
     toggle.Size = UDim2.new(0, 250, 0, 60)
-    toggle.Position = UDim2.new(0.45, 0, 0.4, 0)
+    toggle.Position = UDim2.new(0.5, -125, 0.4, -30)
     toggle.Text = "열화상 & 벽뚫: OFF"
     toggle.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
     toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -136,20 +196,10 @@ local function LoadActualMenu()
             toggle.Text = "열화상 & 벽뚫: ON"
             toggle.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
             thermalEffect.Enabled = true
-            
-            -- [핵심] ON 할 때 딱 한번만 실행
-            ApplyRandomColors()
-            
             task.spawn(function()
-                while visionEnabled do 
-                    UpdateESP() 
-                    task.wait(1) 
-                end
-                -- OFF 시 정리
+                while visionEnabled do UpdateESP() task.wait(1) end
                 for _, p in pairs(Players:GetPlayers()) do
-                    if p.Character and p.Character:FindFirstChild("ECA_ESP") then 
-                        p.Character.ECA_ESP.Enabled = false 
-                    end
+                    if p.Character and p.Character:FindFirstChild("ECA_ESP") then p.Character.ECA_ESP.Enabled = false end
                 end
             end)
         else
@@ -158,10 +208,78 @@ local function LoadActualMenu()
             thermalEffect.Enabled = false
         end
     end)
+
+    -- [페이지 2: 무전기]
+    local radioPage = Instance.new("Frame", contentFrame)
+    radioPage.Size = UDim2.new(1, 0, 1, 0)
+    radioPage.BackgroundTransparency = 1
+    radioPage.Visible = false
+
+    local teamBox = Instance.new("TextBox", radioPage)
+    teamBox.Size = UDim2.new(0.8, 0, 0, 40)
+    teamBox.Position = UDim2.new(0.1, 0, 0.2, 0)
+    teamBox.PlaceholderText = "팀 이름을 입력하세요..."
+    teamBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    teamBox.TextColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", teamBox)
+
+    local makeBtn = Instance.new("TextButton", radioPage)
+    makeBtn.Size = UDim2.new(0.8, 0, 0, 45)
+    makeBtn.Position = UDim2.new(0.1, 0, 0.45, 0)
+    makeBtn.Text = "팀 만들기 (라디오 활성화)"
+    makeBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+    makeBtn.TextColor3 = Color3.new(1,1,1)
+    makeBtn.Font = Enum.Font.SourceSansBold
+    Instance.new("UICorner", makeBtn)
+
+    local statusLbl = Instance.new("TextLabel", radioPage)
+    statusLbl.Size = UDim2.new(1, 0, 0, 30)
+    statusLbl.Position = UDim2.new(0, 0, 0.7, 0)
+    statusLbl.Text = "현재 소속된 팀 없음"
+    statusLbl.TextColor3 = Color3.fromRGB(150, 150, 150)
+    statusLbl.BackgroundTransparency = 1
+
+    makeBtn.MouseButton1Click:Connect(function()
+        if teamBox.Text ~= "" then
+            currentTeamName = teamBox.Text
+            isTeamLeader = true
+            statusLbl.Text = "활성화 팀: " .. currentTeamName .. " (팀장)"
+            statusLbl.TextColor3 = Color3.fromRGB(0, 255, 127)
+            makeBtn.Text = "팀 생성됨"
+            makeBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        end
+    end)
+
+    -- 사이드바 전환 버튼들
+    local btnVisual = Instance.new("TextButton", sideBar)
+    btnVisual.Size = UDim2.new(1, -10, 0, 40)
+    btnVisual.Position = UDim2.new(0, 5, 0, 60)
+    btnVisual.Text = "Visuals"
+    btnVisual.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    btnVisual.TextColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", btnVisual)
+
+    local btnRadio = Instance.new("TextButton", sideBar)
+    btnRadio.Size = UDim2.new(1, -10, 0, 40)
+    btnRadio.Position = UDim2.new(0, 5, 0, 105)
+    btnRadio.Text = "Radio Team"
+    btnRadio.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    btnRadio.TextColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", btnRadio)
+
+    btnVisual.MouseButton1Click:Connect(function()
+        visualPage.Visible = true
+        radioPage.Visible = false
+    end)
+
+    btnRadio.MouseButton1Click:Connect(function()
+        visualPage.Visible = false
+        radioPage.Visible = true
+    end)
 end
 
 -------------------------------------------------------
--- [4. 인증 성공 시 합체 연출]
+-- [기존 연출 및 로딩 로직 유지]
 -------------------------------------------------------
 local function PlayMergeAnimation()
     local transGui = Instance.new("ScreenGui", playerGui)
@@ -190,9 +308,6 @@ local function PlayMergeAnimation()
     transGui:Destroy()
 end
 
--------------------------------------------------------
--- [5. 메인 허브 (인증창)]
--------------------------------------------------------
 local function LoadMainHub()
     local mainGui = Instance.new("ScreenGui", playerGui)
     mainGui.Name = uiName
@@ -203,12 +318,6 @@ local function LoadMainHub()
     frame.Position = UDim2.new(0.5, -200, 0.5, -225)
     frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     Instance.new("UICorner", frame)
-
-    local img = Instance.new("ImageLabel", frame)
-    img.Size = UDim2.new(0, 320, 0, 240)
-    img.Position = UDim2.new(0.5, -160, 0.05, 0)
-    img.Image = "rbxassetid://74935234571734" 
-    img.BackgroundTransparency = 1
 
     local input = Instance.new("TextBox", frame)
     input.Size = UDim2.new(0.7, 0, 0, 40)
@@ -226,13 +335,6 @@ local function LoadMainHub()
     btn.Font = Enum.Font.SourceSansBold
 
     btn.MouseButton1Click:Connect(function()
-        for _, name in pairs(Blacklist) do
-            if string.lower(lp.Name) == string.lower(name) then
-                mainGui:Destroy()
-                ShowBanScreen()
-                return
-            end
-        end
         if input.Text:match("^%s*(.-)%s*$") == correctKey then
             mainGui:Destroy()
             PlayMergeAnimation()
@@ -242,9 +344,6 @@ local function LoadMainHub()
     end)
 end
 
--------------------------------------------------------
--- [6. 로딩 UI 및 초기 밴 체크]
--------------------------------------------------------
 local function startLoading()
     for _, name in pairs(Blacklist) do
         if string.lower(lp.Name) == string.lower(name) then
@@ -256,64 +355,27 @@ local function startLoading()
     local screenGui = Instance.new("ScreenGui", playerGui)
     screenGui.Name = "LoadingScreen_ECA"
     screenGui.IgnoreGuiInset = true
-    screenGui.DisplayOrder = 30000
 
     local bg = Instance.new("Frame", screenGui)
     bg.Size = UDim2.new(1, 0, 1, 0)
     bg.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
 
-    local mainFrame = Instance.new("Frame", bg)
-    mainFrame.Size = UDim2.new(0, 450, 0, 300)
-    mainFrame.Position = UDim2.new(0.5, -225, 0.5, -150)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    Instance.new("UICorner", mainFrame)
-    Instance.new("UIStroke", mainFrame).Color = Color3.fromRGB(0, 255, 127)
-
-    local logo = Instance.new("ImageLabel", mainFrame)
-    logo.Size = UDim2.new(0, 140, 0, 140)
-    logo.Position = UDim2.new(0.5, -70, 0.05, 0)
-    logo.Image = "rbxassetid://74935234571734" 
-    logo.BackgroundTransparency = 1
-    logo.ZIndex = 5
-
-    local status = Instance.new("TextLabel", mainFrame)
-    status.Size = UDim2.new(1, 0, 0, 20)
-    status.Position = UDim2.new(0, 0, 0.75, 0)
-    status.Text = "Initializing..."
-    status.TextColor3 = Color3.fromRGB(0, 255, 127)
-    status.TextSize = 16
-    status.BackgroundTransparency = 1
-
-    local barBg = Instance.new("Frame", mainFrame)
-    barBg.Size = UDim2.new(0.8, 0, 0, 4)
-    barBg.Position = UDim2.new(0.1, 0, 0.9, 0)
+    local barBg = Instance.new("Frame", bg)
+    barBg.Size = UDim2.new(0.4, 0, 0, 4)
+    barBg.Position = UDim2.new(0.3, 0, 0.5, 0)
     barBg.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    barBg.BorderSizePixel = 0
 
     local bar = Instance.new("Frame", barBg)
     bar.Size = UDim2.new(0, 0, 1, 0)
     bar.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
-    bar.BorderSizePixel = 0
 
     task.spawn(function()
-        local steps = {
-            {s = "1단계 안티치트 우회중", c = Color3.fromRGB(255, 50, 50)},
-            {s = "2단계 안티치트 우회 50%", c = Color3.fromRGB(255, 200, 0)},
-            {s = "3단계 우회성공", c = Color3.fromRGB(0, 255, 127)},
-            {s = "4단계 불러오는중......", c = Color3.fromRGB(255, 255, 255)}
-        }
-        for i, step in ipairs(steps) do
-            status.Text = step.s
-            status.TextColor3 = step.c
-            bar:TweenSize(UDim2.new(i/4, 0, 1, 0), "Out", "Quad", 0.8)
-            task.wait(1.2)
-        end
-        task.wait(0.5)
+        bar:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Quad", 3)
+        task.wait(3.2)
         screenGui:Destroy()
         LoadMainHub()
     end)
 end
 
--- 실행 시작
 startLoading()
 
