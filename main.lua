@@ -21,12 +21,12 @@ thermalEffect.Enabled = false
 thermalEffect.Parent = Lighting
 
 -------------------------------------------------------
--- [추가된 핵심 기능: 환경 파트 색상 변경]
+-- [추가된 핵심 기능: 환경 색상 1회 랜덤 변경]
 -------------------------------------------------------
-local function UpdateEnvironmentColors()
+local function ApplyRandomColors()
     for _, obj in pairs(game.Workspace:GetDescendants()) do
         if obj:IsA("BasePart") then
-            -- 1. 플레이어 캐릭터 파트는 제외 (ESP 테두리 유지를 위해)
+            -- 플레이어 캐릭터 파트는 제외
             local isCharacterPart = false
             for _, player in pairs(Players:GetPlayers()) do
                 if player.Character and obj:IsDescendantOf(player.Character) then
@@ -36,11 +36,10 @@ local function UpdateEnvironmentColors()
             end
 
             if not isCharacterPart then
-                -- 2. Water 파트는 빨간색
                 if obj.Name == "Water" then
-                    obj.Color = Color3.fromRGB(255, 0, 0)
+                    obj.Color = Color3.fromRGB(255, 0, 0) -- Water는 빨강
                 else
-                    -- 3. 그 외 파트는 노랑/빨강 랜덤
+                    -- 노랑 또는 빨강으로 1회 랜덤 설정
                     local rand = math.random(1, 2)
                     obj.Color = (rand == 1) and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(255, 0, 0)
                 end
@@ -49,9 +48,8 @@ local function UpdateEnvironmentColors()
     end
 end
 
--- ESP 및 환경 업데이트 함수
+-- ESP 업데이트 함수 (플레이어 테두리용)
 local function UpdateESP()
-    -- 플레이어 테두리 (기존 기능)
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= lp and player.Character then
             local highlight = player.Character:FindFirstChild("ECA_ESP")
@@ -64,11 +62,6 @@ local function UpdateESP()
             highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
             highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
         end
-    end
-
-    -- 내가 말한 기능: 환경 색상 변경 (기능 추가됨)
-    if visionEnabled then
-        UpdateEnvironmentColors()
     end
 end
 
@@ -107,15 +100,6 @@ local function ShowBanScreen()
     banText.TextSize = 60
     banText.Font = Enum.Font.SourceSansBold
     banText.BackgroundTransparency = 1
-    
-    local subText = Instance.new("TextLabel", bg)
-    subText.Size = UDim2.new(1, 0, 0, 30)
-    subText.Position = UDim2.new(0, 0, 0.75, 0)
-    subText.Text = "YOU ARE PERMANENTLY BLACKLISTED"
-    subText.TextColor3 = Color3.fromRGB(150, 150, 150)
-    subText.TextSize = 20
-    subText.Font = Enum.Font.SourceSans
-    subText.BackgroundTransparency = 1
 end
 
 -------------------------------------------------------
@@ -137,14 +121,6 @@ local function LoadActualMenu()
     sideBar.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
     Instance.new("UICorner", sideBar)
 
-    local title = Instance.new("TextLabel", sideBar)
-    title.Size = UDim2.new(1, 0, 0, 50)
-    title.Text = "ECA V4 PREMIUM"
-    title.TextColor3 = Color3.fromRGB(0, 255, 127)
-    title.TextSize = 16
-    title.Font = Enum.Font.SourceSansBold
-    title.BackgroundTransparency = 1
-
     local toggle = Instance.new("TextButton", mainFrame)
     toggle.Size = UDim2.new(0, 250, 0, 60)
     toggle.Position = UDim2.new(0.45, 0, 0.4, 0)
@@ -160,10 +136,20 @@ local function LoadActualMenu()
             toggle.Text = "열화상 & 벽뚫: ON"
             toggle.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
             thermalEffect.Enabled = true
+            
+            -- [핵심] ON 할 때 딱 한번만 실행
+            ApplyRandomColors()
+            
             task.spawn(function()
-                while visionEnabled do UpdateESP() task.wait(1) end
+                while visionEnabled do 
+                    UpdateESP() 
+                    task.wait(1) 
+                end
+                -- OFF 시 정리
                 for _, p in pairs(Players:GetPlayers()) do
-                    if p.Character and p.Character:FindFirstChild("ECA_ESP") then p.Character.ECA_ESP.Enabled = false end
+                    if p.Character and p.Character:FindFirstChild("ECA_ESP") then 
+                        p.Character.ECA_ESP.Enabled = false 
+                    end
                 end
             end)
         else
@@ -247,7 +233,6 @@ local function LoadMainHub()
                 return
             end
         end
-
         if input.Text:match("^%s*(.-)%s*$") == correctKey then
             mainGui:Destroy()
             PlayMergeAnimation()
@@ -290,24 +275,6 @@ local function startLoading()
     logo.Image = "rbxassetid://74935234571734" 
     logo.BackgroundTransparency = 1
     logo.ZIndex = 5
-
-    local bypassTxt = Instance.new("TextLabel", mainFrame)
-    bypassTxt.Size = UDim2.new(1, 0, 0, 20)
-    bypassTxt.Position = UDim2.new(0, 0, 0.55, 0)
-    bypassTxt.Text = "SECURITY SYSTEM: BYPASSING..."
-    bypassTxt.TextColor3 = Color3.fromRGB(255, 50, 50)
-    bypassTxt.Font = Enum.Font.Code
-    bypassTxt.TextSize = 14
-    bypassTxt.BackgroundTransparency = 1
-
-    local title = Instance.new("TextLabel", mainFrame)
-    title.Size = UDim2.new(1, 0, 0, 30)
-    title.Position = UDim2.new(0, 0, 0.65, 0)
-    title.Text = "ECA V4 PREMIUM EDITION"
-    title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.Font = Enum.Font.SourceSansBold
-    title.TextSize = 22
-    title.BackgroundTransparency = 1
 
     local status = Instance.new("TextLabel", mainFrame)
     status.Size = UDim2.new(1, 0, 0, 20)
