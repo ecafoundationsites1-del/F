@@ -1,4 +1,3 @@
-
 -- 서비스 및 로컬 변수
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -21,7 +20,7 @@ thermalEffect.TintColor = Color3.fromRGB(150, 200, 255)
 thermalEffect.Enabled = false
 thermalEffect.Parent = Lighting
 
--- ESP 업데이트 함수
+-- ESP 업데이트 함수 (초록 테두리 + 벽 투과)
 local function UpdateESP()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= lp and player.Character then
@@ -36,7 +35,7 @@ local function UpdateESP()
             highlight.FillColor = Color3.fromRGB(0, 255, 0)
             highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
             highlight.OutlineTransparency = 0
-            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- 벽 뚫고 보기
+            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
         end
     end
 end
@@ -52,12 +51,12 @@ end
 ClearOldUI()
 
 -------------------------------------------------------
--- [3. 메인 기능 화면 (사이드바 및 시야 기능)]
+-- [3. 메인 기능 화면 (사이드바 메뉴)]
 -------------------------------------------------------
 local function LoadActualMenu()
     local menuGui = Instance.new("ScreenGui", playerGui)
     menuGui.Name = "ECA_MainMenu"
-    menuGui.DisplayOrder = 20000
+    menuGui.DisplayOrder = 20000 -- 연출보다 위에 뜨도록 설정
     
     local mainFrame = Instance.new("Frame", menuGui)
     mainFrame.Size = UDim2.new(0, 550, 0, 350)
@@ -75,13 +74,13 @@ local function LoadActualMenu()
 
     local titleLabel = Instance.new("TextLabel", sideBar)
     titleLabel.Size = UDim2.new(1, 0, 0, 50)
-    titleLabel.Text = "ECA V4 MENU"
+    titleLabel.Text = "ECA V4 PREMIUM"
     titleLabel.TextColor3 = Color3.fromRGB(0, 255, 127)
-    titleLabel.TextSize = 18
+    titleLabel.TextSize = 16
     titleLabel.Font = Enum.Font.SourceSansBold
     titleLabel.BackgroundTransparency = 1
 
-    -- 시야 메뉴 버튼
+    -- 시야 메뉴 탭 (사이드바 버튼)
     local visionTabBtn = Instance.new("TextButton", sideBar)
     visionTabBtn.Size = UDim2.new(0.9, 0, 0, 40)
     visionTabBtn.Position = UDim2.new(0.05, 0, 0.2, 0)
@@ -91,50 +90,40 @@ local function LoadActualMenu()
     visionTabBtn.Font = Enum.Font.SourceSansBold
     Instance.new("UICorner", visionTabBtn)
 
-    -- 메인 콘텐츠 영역
-    local contentFrame = Instance.new("Frame", mainFrame)
-    contentFrame.Size = UDim2.new(0, 380, 0, 300)
-    contentFrame.Position = UDim2.new(0.3, 0, 0.1, 0)
-    contentFrame.BackgroundTransparency = 1
+    -- 기능 토글 버튼 (메인 영역)
+    local toggleBtn = Instance.new("TextButton", mainFrame)
+    toggleBtn.Size = UDim2.new(0, 250, 0, 60)
+    toggleBtn.Position = UDim2.new(0.45, 0, 0.4, 0) -- 사이드바 옆 중앙 배치
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    toggleBtn.Text = "열화상 & 벽뚫: OFF"
+    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleBtn.TextSize = 20
+    toggleBtn.Font = Enum.Font.SourceSansBold
+    Instance.new("UICorner", toggleBtn)
 
-    local function createToggle()
-        local toggleBtn = Instance.new("TextButton", contentFrame)
-        toggleBtn.Size = UDim2.new(0, 220, 0, 50)
-        toggleBtn.Position = UDim2.new(0.2, 0, 0.3, 0)
-        toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        toggleBtn.Text = "열화상 & 벽뚫: OFF"
-        toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        toggleBtn.TextSize = 20
-        toggleBtn.Font = Enum.Font.SourceSansBold
-        Instance.new("UICorner", toggleBtn)
-
-        toggleBtn.MouseButton1Click:Connect(function()
-            visionEnabled = not visionEnabled
-            if visionEnabled then
-                toggleBtn.Text = "열화상 & 벽뚫: ON"
-                toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-                thermalEffect.Enabled = true
-                -- 실시간 ESP 루프
-                task.spawn(function()
-                    while visionEnabled do
-                        UpdateESP()
-                        task.wait(1)
+    toggleBtn.MouseButton1Click:Connect(function()
+        visionEnabled = not visionEnabled
+        if visionEnabled then
+            toggleBtn.Text = "열화상 & 벽뚫: ON"
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+            thermalEffect.Enabled = true
+            task.spawn(function()
+                while visionEnabled do
+                    UpdateESP()
+                    task.wait(1)
+                end
+                for _, v in pairs(Players:GetPlayers()) do
+                    if v.Character and v.Character:FindFirstChild("ECA_ESP") then
+                        v.Character.ECA_ESP.Enabled = false
                     end
-                    -- 비활성화 시 하이라이트 제거
-                    for _, v in pairs(Players:GetPlayers()) do
-                        if v.Character and v.Character:FindFirstChild("ECA_ESP") then
-                            v.Character.ECA_ESP.Enabled = false
-                        end
-                    end
-                end)
-            else
-                toggleBtn.Text = "열화상 & 벽뚫: OFF"
-                toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-                thermalEffect.Enabled = false
-            end
-        end)
-    end
-    createToggle()
+                end
+            end)
+        else
+            toggleBtn.Text = "열화상 & 벽뚫: OFF"
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            thermalEffect.Enabled = false
+        end
+    end)
 end
 
 -------------------------------------------------------
@@ -164,7 +153,7 @@ local function PlayMergeAnimation()
     end
     
     task.wait(0.8)
-    LoadActualMenu()
+    LoadActualMenu() -- 사이드바 메뉴 호출
     task.wait(0.2)
     
     for i = 1, 4 do
@@ -215,8 +204,8 @@ local function LoadMainHub()
     submitBtn.MouseButton1Click:Connect(function()
         local cleanKey = keyInput.Text:match("^%s*(.-)%s*$") 
         if cleanKey == correctKey then
-            mainGui:Destroy()
-            PlayMergeAnimation()
+            mainGui:Destroy() -- 인증창 삭제
+            PlayMergeAnimation() -- 연출 후 메뉴로 연결
         else
             keyInput.Text = ""
         end
@@ -264,3 +253,4 @@ local function startLoading()
 end
 
 task.spawn(startLoading)
+
