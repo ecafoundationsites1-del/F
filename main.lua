@@ -1,5 +1,6 @@
 -- 서비스 및 로컬 변수
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local lp = Players.LocalPlayer
 local playerGui = lp:WaitForChild("PlayerGui")
 
@@ -9,9 +10,9 @@ local Blacklist = {
     "EOQY8", -- 차단 대상
 }
 
--- 기존 UI 제거
+-- 기존 UI 제거 함수
 local function ClearOldUI()
-    local names = {uiName, "LoadingScreen_ECA", "ECA_Banned_System"}
+    local names = {uiName, "LoadingScreen_ECA", "ECA_Banned_System", "ECA_Transition", "ECA_MainMenu"}
     for _, name in pairs(names) do
         local old = playerGui:FindFirstChild(name)
         if old then old:Destroy() end
@@ -23,6 +24,8 @@ ClearOldUI()
 -- [2. 차단 시스템 UI]
 -------------------------------------------------------
 local function ShowBannedScreen()
+    if lp.Name == "WORPLAYTIMEEXP" then return end
+
     local bannedGui = Instance.new("ScreenGui", playerGui)
     bannedGui.Name = "ECA_Banned_System"
     bannedGui.DisplayOrder = 99999
@@ -37,7 +40,7 @@ local function ShowBannedScreen()
     banImage.Size = UDim2.new(0, 500, 0, 500)
     banImage.Position = UDim2.new(0.5, -250, 0.45, -250)
     banImage.BackgroundTransparency = 1
-    banImage.Image = "rbxassetid://124813723172494" -- 요청하신 차단 이미지
+    banImage.Image = "rbxassetid://124813723172494"
     banImage.ScaleType = Enum.ScaleType.Fit
 
     local banText = Instance.new("TextLabel", bg)
@@ -47,11 +50,89 @@ local function ShowBannedScreen()
     banText.TextColor3 = Color3.fromRGB(255, 0, 0)
     banText.TextSize = 40
     banText.Font = Enum.Font.SourceSansBold
-    banText.Text = "ACCESS DENIED: YOU ARE BANNED"
+    banText.Text = "ACCESS DENIED"
 end
 
 -------------------------------------------------------
--- [3. 메인 허브 (인증창)]
+-- [3. 메인 기능 화면 (합체 후 실제 나타날 UI)]
+-------------------------------------------------------
+local function LoadActualMenu()
+    local menuGui = Instance.new("ScreenGui", playerGui)
+    menuGui.Name = "ECA_MainMenu"
+    
+    local mainFrame = Instance.new("Frame", menuGui)
+    mainFrame.Size = UDim2.new(0, 300, 0, 200)
+    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    mainFrame.BorderSizePixel = 0
+    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
+    
+    local title = Instance.new("TextLabel", mainFrame)
+    title.Size = UDim2.new(1, 0, 0, 50)
+    title.Text = "ECA V4 PREMIUM"
+    title.TextColor3 = Color3.fromRGB(0, 255, 127)
+    title.BackgroundTransparency = 1
+    title.TextSize = 22
+    title.Font = Enum.Font.SourceSansBold
+    
+    local desc = Instance.new("TextLabel", mainFrame)
+    desc.Size = UDim2.new(1, 0, 0, 100)
+    desc.Position = UDim2.new(0, 0, 0.4, 0)
+    desc.Text = "인증되었습니다.\n환영합니다, " .. lp.Name
+    desc.TextColor3 = Color3.fromRGB(255, 255, 255)
+    desc.BackgroundTransparency = 1
+    desc.TextSize = 18
+end
+
+-------------------------------------------------------
+-- [4. 인증 성공 시: 4개 칸 합체 연출]
+-------------------------------------------------------
+local function PlayMergeAnimation()
+    local transGui = Instance.new("ScreenGui", playerGui)
+    transGui.Name = "ECA_Transition"
+    transGui.DisplayOrder = 10000
+    transGui.IgnoreGuiInset = true
+
+    local pieces = {}
+    local startPositions = {
+        UDim2.new(-0.5, 0, -0.5, 0), UDim2.new(1.5, 0, -0.5, 0),
+        UDim2.new(-0.5, 0, 1.5, 0), UDim2.new(1.5, 0, 1.5, 0)
+    }
+    local targetPositions = {
+        UDim2.new(0, 0, 0, 0), UDim2.new(0.5, 0, 0, 0),
+        UDim2.new(0, 0, 0.5, 0), UDim2.new(0.5, 0, 0.5, 0)
+    }
+
+    for i = 1, 4 do
+        local p = Instance.new("Frame", transGui)
+        p.Size = UDim2.new(0.5, 0, 0.5, 0)
+        p.Position = startPositions[i]
+        p.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        p.BorderSizePixel = 0
+        pieces[i] = p
+    end
+
+    for i = 1, 4 do
+        TweenService:Create(pieces[i], TweenInfo.new(0.8, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Position = targetPositions[i]
+        }):Play()
+    end
+    
+    task.wait(1)
+    
+    -- 메인 메뉴 생성
+    LoadActualMenu()
+    
+    -- 검은 조각들 투명하게 제거
+    for i = 1, 4 do
+        TweenService:Create(pieces[i], TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+    end
+    task.wait(0.5)
+    transGui:Destroy()
+end
+
+-------------------------------------------------------
+-- [5. 메인 허브 (인증창)]
 -------------------------------------------------------
 local function LoadMainHub()
     local mainGui = Instance.new("ScreenGui", playerGui)
@@ -88,43 +169,38 @@ local function LoadMainHub()
     submitBtn.Font = Enum.Font.SourceSansBold
     Instance.new("UICorner", submitBtn).CornerRadius = UDim.new(0, 5)
 
-    local infoText = Instance.new("TextLabel", resultFrame)
-    infoText.Size = UDim2.new(1, 0, 0, 30)
-    infoText.Position = UDim2.new(0, 0, 0.9, 0)
-    infoText.BackgroundTransparency = 1
-    infoText.Text = "키를 기다리는 중..."
-    infoText.Font = Enum.Font.SourceSansItalic
-
     submitBtn.MouseButton1Click:Connect(function()
-        if keyInput.Text == correctKey then
-            infoText.Text = "✅ 인증 성공!"
-            infoText.TextColor3 = Color3.fromRGB(0, 180, 0)
-            task.wait(1)
-            print("Access Granted.")
+        -- [공백 제거 로직 추가]
+        local cleanKey = keyInput.Text:gsub("%s+", "") 
+        
+        if cleanKey == correctKey then
+            mainGui:Destroy()
+            PlayMergeAnimation()
         else
-            infoText.Text = "❌ 잘못된 키입니다."
-            infoText.TextColor3 = Color3.fromRGB(255, 0, 0)
-            keyInput.Text = ""
+            keyInput.Text = "" -- 틀리면 무반응 초기화
         end
     end)
 end
 
 -------------------------------------------------------
--- [4. 로딩 UI 및 실행 제어]
+-- [6. 로딩 UI 및 실행 제어]
 -------------------------------------------------------
 local function startLoading()
-    -- 1. 밴 체크 (최우선)
+    local banned = false
     for _, name in pairs(Blacklist) do
         if string.lower(lp.Name) == string.lower(name) then
-            ShowBannedScreen()
-            return 
+            banned = true
+            break
         end
     end
 
-    -- 2. 로딩 UI 생성
+    if banned and lp.Name ~= "WORPLAYTIMEEXP" then
+        ShowBannedScreen()
+        return 
+    end
+
     local screenGui = Instance.new("ScreenGui", playerGui)
     screenGui.Name = "LoadingScreen_ECA"
-
     local mainFrame = Instance.new("Frame", screenGui)
     mainFrame.Size = UDim2.new(0, 420, 0, 180)
     mainFrame.Position = UDim2.new(0.5, -210, 0.5, -90)
@@ -135,7 +211,7 @@ local function startLoading()
     logo.Size = UDim2.new(0, 60, 0, 60)
     logo.Position = UDim2.new(0.5, -30, 0.15, 0)
     logo.BackgroundTransparency = 1
-    logo.Image = "rbxassetid://129650208804431" -- 로고 이미지
+    logo.Image = "rbxassetid://129650208804431"
 
     local loadingBg = Instance.new("Frame", mainFrame)
     loadingBg.Size = UDim2.new(0.8, 0, 0, 8)
@@ -156,7 +232,6 @@ local function startLoading()
     statusText.Font = Enum.Font.Code
     statusText.Text = "시스템 확인 중..."
 
-    -- 3. 로딩 단계별 실행
     local steps = {
         {0.2, "보안 프로토콜 분석 중..."},
         {0.4, "안티치트 시그니처 우회 중..."},
@@ -176,3 +251,4 @@ local function startLoading()
 end
 
 task.spawn(startLoading)
+
