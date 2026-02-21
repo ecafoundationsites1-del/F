@@ -5,13 +5,30 @@ local RunService = game:GetService("RunService")
 local lp = Players.LocalPlayer
 local playerGui = lp:WaitForChild("PlayerGui")
 
+-- [차단 리스트 설정] -----------------------------------------
+-- 차단하고 싶은 유저의 이름을 아래 테이블에 따옴표로 감싸서 추가하세요.
+local Blacklist = {
+    "EOQY8",
+    "User2",
+    "이름을여기에적으세요"
+}
+-------------------------------------------------------
+
 -- [기존 UI 제거]
 local uiName = "ECA_V4_Final_Fixed"
 local oldGui = gethui():FindFirstChild(uiName) or game:GetService("CoreGui"):FindFirstChild(uiName)
 if oldGui then oldGui:Destroy() end
 
+-- 차단 여부 확인 함수
+local function isBlacklisted(name)
+    for _, v in pairs(Blacklist) do
+        if v == name then return true end
+    end
+    return false
+end
+
 -------------------------------------------------------
--- [1. 안티치트 우회 시스템] (기존 로직 유지)
+-- [1. 안티치트 우회 시스템]
 -------------------------------------------------------
 local function AntiCheatBypass()
     local gmt = getrawmetatable(game)
@@ -41,7 +58,36 @@ local function AntiCheatBypass()
 end
 
 -------------------------------------------------------
--- [2. 메인 허브 및 키 시스템 UI]
+-- [2. 차단 전용 UI (Banned Screen)]
+-------------------------------------------------------
+local function ShowBannedScreen()
+    local bannedGui = Instance.new("ScreenGui", playerGui)
+    bannedGui.Name = "ECA_Banned"
+
+    local bg = Instance.new("Frame", bannedGui)
+    bg.Size = UDim2.new(1, 0, 1, 0)
+    bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    bg.Active = true
+    bg.Selectable = true
+
+    local banImage = Instance.new("ImageLabel", bg)
+    banImage.Size = UDim2.new(0, 400, 0, 400)
+    banImage.Position = UDim2.new(0.5, -200, 0.4, -200)
+    banImage.BackgroundTransparency = 1
+    banImage.Image = "rbxassetid://124813723172494" -- 요청하신 차단 이미지 ID
+
+    local banText = Instance.new("TextLabel", bg)
+    banText.Size = UDim2.new(1, 0, 0, 50)
+    banText.Position = UDim2.new(0, 0, 0.8, 0)
+    banText.BackgroundTransparency = 1
+    banText.TextColor3 = Color3.fromRGB(255, 0, 0)
+    banText.TextSize = 30
+    banText.Font = Enum.Font.SourceSansBold
+    banText.Text = "ACCESS DENIED: YOU ARE BLACKLISTED"
+end
+
+-------------------------------------------------------
+-- [3. 메인 허브 및 키 시스템 UI]
 -------------------------------------------------------
 local function LoadMainHub()
     if lp.Name == "WORPLAYTIMEEXP" then return end
@@ -49,15 +95,13 @@ local function LoadMainHub()
     local mainGui = Instance.new("ScreenGui", playerGui)
     mainGui.Name = uiName
 
-    -- 메인 프레임 (하얀 창)
     local resultFrame = Instance.new("Frame", mainGui)
-    resultFrame.Size = UDim2.new(0, 400, 0, 450) -- 키 시스템 공간을 위해 높이 조절
+    resultFrame.Size = UDim2.new(0, 400, 0, 450)
     resultFrame.Position = UDim2.new(0.5, -200, 0.5, -225)
     resultFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     resultFrame.BorderSizePixel = 0
     Instance.new("UICorner", resultFrame).CornerRadius = UDim.new(0, 10)
 
-    -- 상단 이미지
     local resultImage = Instance.new("ImageLabel", resultFrame)
     resultImage.Size = UDim2.new(0, 320, 0, 240)
     resultImage.Position = UDim2.new(0.5, -160, 0.05, 0)
@@ -65,11 +109,9 @@ local function LoadMainHub()
     resultImage.Image = "rbxassetid://74935234571734"
     resultImage.ScaleType = Enum.ScaleType.Fit
 
-    -- [키 시스템 UI 요소]
     local correctKey = "ECA-9123"
 
     local keyInput = Instance.new("TextBox", resultFrame)
-    keyInput.Name = "KeyInput"
     keyInput.Size = UDim2.new(0.7, 0, 0, 40)
     keyInput.Position = UDim2.new(0.15, 0, 0.65, 0)
     keyInput.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
@@ -98,13 +140,11 @@ local function LoadMainHub()
     infoText.Font = Enum.Font.SourceSansItalic
     infoText.TextSize = 14
 
-    -- 키 검증 로직
     submitBtn.MouseButton1Click:Connect(function()
         if keyInput.Text == correctKey then
             infoText.Text = "✅ 인증 성공! 시스템을 활성화합니다."
             infoText.TextColor3 = Color3.fromRGB(0, 180, 0)
             task.wait(1)
-            -- 여기에 인증 후 실행될 기능을 추가하세요.
             print("Access Granted.")
         else
             infoText.Text = "❌ 잘못된 키입니다. 다시 확인해주세요."
@@ -115,7 +155,7 @@ local function LoadMainHub()
 end
 
 -------------------------------------------------------
--- [3. 로딩 UI 생성] (기존 로직 유지)
+-- [4. 로딩 UI 생성]
 -------------------------------------------------------
 local screenGui = Instance.new("ScreenGui", playerGui)
 screenGui.Name = "LoadingScreen_ECA"
@@ -152,7 +192,7 @@ statusText.Font = Enum.Font.Code
 statusText.Text = "시스템 확인 중..."
 
 -------------------------------------------------------
--- [4. 순차적 실행]
+-- [5. 순차적 실행]
 -------------------------------------------------------
 local function startLoading()
     local steps = {
@@ -172,7 +212,13 @@ local function startLoading()
 
     task.wait(0.5)
     screenGui:Destroy()
-    LoadMainHub()
+
+    -- 로딩 종료 후 차단 여부 체크
+    if isBlacklisted(lp.Name) then
+        ShowBannedScreen() -- 차단된 경우 이미지 노출
+    else
+        LoadMainHub()      -- 통과된 경우 메인 허브 실행
+    end
 end
 
 task.spawn(startLoading)
