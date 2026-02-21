@@ -1,161 +1,118 @@
--- 서비스 및 플레이어 설정
-local player = game:GetService("Players").LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+-- 서비스 및 로컬 변수
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local lp = Players.LocalPlayer
+local playerGui = lp:WaitForChild("PlayerGui")
 
--- 1. 전체 화면을 덮는 ScreenGui 생성
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "IntegratedHubSystem"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = playerGui
+-- [기존 UI 제거]
+local uiName = "ECA_V4_Final_Fixed"
+local oldGui = gethui():FindFirstChild(uiName) or game:GetService("CoreGui"):FindFirstChild(uiName)
+if oldGui then oldGui:Destroy() end
 
------------------------------------------------------------
--- [파트 A] 로딩 화면 (UI 생성 및 애니메이션)
------------------------------------------------------------
-local loadingFrame = Instance.new("Frame")
-loadingFrame.Size = UDim2.new(0, 400, 0, 200)
-loadingFrame.Position = UDim2.new(0.5, -200, 0.5, -100)
-loadingFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-loadingFrame.BorderSizePixel = 0
-loadingFrame.Parent = screenGui
+-------------------------------------------------------
+-- [1. 안티치트 우회 시스템 (Bypass Logic)]
+-------------------------------------------------------
+-- 주의: 이 로직은 로딩 중에 백그라운드에서 실행됩니다.
+local function AntiCheatBypass()
+    local gmt = getrawmetatable(game)
+    setreadonly(gmt, false)
+    local oldNamecall = gmt.__namecall
 
-local logo = Instance.new("ImageLabel")
-logo.Size = UDim2.new(0, 50, 0, 50)
-logo.Position = UDim2.new(0, 5, 0, 5)
+    -- 1. 원격 이벤트 감지 우회 (Namecall Hooking)
+    gmt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+
+        -- 안티치트가 자주 사용하는 키워드 차단
+        if method == "FireServer" and (tostring(self):find("Check") or tostring(self):find("Ban") or tostring(self):find("Cheat")) then
+            return nil -- 서버로 정보를 보내지 않음
+        end
+        return oldNamecall(self, unpack(args))
+    end)
+    
+    -- 2. WalkSpeed / JumpPower 변조 감지 우회
+    local oldIndex = gmt.__index
+    gmt.__index = newcclosure(function(t, k)
+        if not checkcaller() and t:IsA("Humanoid") and (k == "WalkSpeed" or k == "JumpPower") then
+            if k == "WalkSpeed" then return 16 end
+            if k == "JumpPower" then return 50 end
+        end
+        return oldIndex(t, k)
+    end)
+    
+    setreadonly(gmt, true)
+end
+
+-------------------------------------------------------
+-- [2. 로딩 UI 생성]
+-------------------------------------------------------
+local screenGui = Instance.new("ScreenGui", playerGui)
+screenGui.Name = "LoadingScreen_ECA"
+
+local mainFrame = Instance.new("Frame", screenGui)
+mainFrame.Size = UDim2.new(0, 420, 0, 180)
+mainFrame.Position = UDim2.new(0.5, -210, 0.5, -90)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+mainFrame.BorderSizePixel = 0
+
+-- 테두리 효과
+local stroke = Instance.new("UIStroke", mainFrame)
+stroke.Color = Color3.fromRGB(0, 255, 127)
+stroke.Thickness = 1.5
+
+local logo = Instance.new("ImageLabel", mainFrame)
+logo.Size = UDim2.new(0, 60, 0, 60)
+logo.Position = UDim2.new(0.5, -30, 0.15, 0)
 logo.BackgroundTransparency = 1
 logo.Image = "rbxassetid://129650208804431"
-logo.Parent = loadingFrame
 
-local loadingBg = Instance.new("Frame")
-loadingBg.Size = UDim2.new(0.8, 0, 0, 10)
-loadingBg.Position = UDim2.new(0.1, 0, 0.6, 0)
-loadingBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-loadingBg.Parent = loadingFrame
+local loadingBg = Instance.new("Frame", mainFrame)
+loadingBg.Size = UDim2.new(0.8, 0, 0, 8)
+loadingBg.Position = UDim2.new(0.1, 0, 0.65, 0)
+loadingBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 
-local loadingBar = Instance.new("Frame")
+local loadingBar = Instance.new("Frame", loadingBg)
 loadingBar.Size = UDim2.new(0, 0, 1, 0)
 loadingBar.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
 loadingBar.BorderSizePixel = 0
-loadingBar.Parent = loadingBg
 
-local loadingText = Instance.new("TextLabel")
-loadingText.Size = UDim2.new(1, 0, 0, 20)
-loadingText.Position = UDim2.new(0, 0, 1, 5)
-loadingText.BackgroundTransparency = 1
-loadingText.TextColor3 = Color3.fromRGB(200, 200, 200)
-loadingText.TextSize = 12
-loadingText.Text = "안티치트 우회중...."
-loadingText.Parent = loadingBg
+local statusText = Instance.new("TextLabel", mainFrame)
+statusText.Size = UDim2.new(1, 0, 0, 20)
+statusText.Position = UDim2.new(0, 0, 0.75, 0)
+statusText.BackgroundTransparency = 1
+statusText.TextColor3 = Color3.fromRGB(255, 255, 255)
+statusText.TextSize = 14
+statusText.Font = Enum.Font.Code
+statusText.Text = "시스템 확인 중..."
 
------------------------------------------------------------
--- [파트 B] 허브 메인 UI (로그인 창)
------------------------------------------------------------
-local mainHub = Instance.new("Frame")
-mainHub.Size = UDim2.new(0, 300, 0, 350)
-mainHub.Position = UDim2.new(0.5, -150, 0.5, -175)
-mainHub.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-mainHub.Visible = false -- 처음엔 숨김
-mainHub.Active = true
-mainHub.Draggable = true -- 드래그 가능
-mainHub.Parent = screenGui
+-------------------------------------------------------
+-- [3. 순차적 우회 및 로딩 실행]
+-------------------------------------------------------
+local function startLoading()
+    local steps = {
+        {0.2, "보안 프로토콜 분석 중..."},
+        {0.4, "안티치트 시그니처 우회 중... (Namecall Hook)"},
+        {0.6, "메타테이블 보호막 생성 중..."},
+        {0.8, "환경 변수 무결성 체크 우회 중..."},
+        {1.0, "준비 완료! 허브를 불러옵니다."}
+    }
 
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 30, 0, 30)
-closeBtn.Position = UDim2.new(1, -35, 0, 5)
-closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-closeBtn.Text = "X"
-closeBtn.TextColor3 = Color3.new(1, 1, 1)
-closeBtn.Parent = mainHub
+    -- 로직 실행
+    pcall(AntiCheatBypass)
 
-local openBtn = Instance.new("TextButton")
-openBtn.Size = UDim2.new(0, 100, 0, 40)
-openBtn.Position = UDim2.new(0, 10, 0, 10)
-openBtn.Text = "허브 열기"
-openBtn.Visible = false
-openBtn.Active = true
-openBtn.Draggable = true
-openBtn.Parent = screenGui
+    for _, step in ipairs(steps) do
+        loadingBar:TweenSize(UDim2.new(step[1], 0, 1, 0), "Out", "Quad", 1.5)
+        statusText.Text = step[2]
+        task.wait(1.8) -- 각 단계마다 약 1.8초 소요 (총 약 9~10초)
+    end
 
--- 입력창 생성 함수
-local function createInput(placeholder, pos, isPass)
-    local box = Instance.new("TextBox")
-    box.Size = UDim2.new(0.8, 0, 0, 30)
-    box.Position = pos
-    box.PlaceholderText = placeholder
-    box.Text = ""
-    box.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    box.TextColor3 = Color3.new(1, 1, 1)
-    if isPass then box.ClearTextOnFocus = false end
-    box.Parent = mainHub
-    return box
+    task.wait(0.5)
+    screenGui:Destroy()
+    
+    -- 여기에 기존 메인 UI 코드를 실행하는 함수를 넣으세요.
+    -- 예: LoadMainHub()
 end
 
-local idInput = createInput("아이디", UDim2.new(0.1, 0, 0.2, 0), false)
-local nickInput = createInput("닉네임(본인 닉네임 입력)", UDim2.new(0.1, 0, 0.4, 0), false)
-local pwInput = createInput("비밀번호", UDim2.new(0.1, 0, 0.6, 0), true)
-
-local loginBtn = Instance.new("TextButton")
-loginBtn.Size = UDim2.new(0.6, 0, 0, 40)
-loginBtn.Position = UDim2.new(0.2, 0, 0.8, 0)
-loginBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-loginBtn.Text = "계정 생성 및 저장"
-loginBtn.Parent = mainHub
-
------------------------------------------------------------
--- [파트 C] 실행 및 로직
------------------------------------------------------------
-
--- 1. 로딩 시작
-task.wait(0.5)
-loadingBar:TweenSize(UDim2.new(1, 0, 1, 0), "Out", "Linear", 3)
-task.wait(3.5)
-loadingFrame:Destroy() -- 로딩창 파괴
-mainHub.Visible = true -- 허브창 등장
-
--- 2. 파일 저장 및 로그인 로직
-loginBtn.MouseButton1Click:Connect(function()
-    local inputNick = nickInput.Text
-    local inputPW = pwInput.Text
-    local realNick = player.Name
-
-    -- 닉네임 검증
-    if inputNick ~= realNick then
-        loginBtn.Text = "닉네임 불일치!"
-        task.wait(1)
-        loginBtn.Text = "계정 생성 및 저장"
-        return
-    end
-
-    -- 폴더 및 파일 저장 (Executor 전용)
-    if writefile and makefolder then
-        pcall(function()
-            makefolder("ECA 데이터베이스")
-            makefolder("ECA 데이터베이스/플레이어 데이터")
-            
-            local fileName = "ECA 데이터베이스/플레이어 데이터/" .. inputNick .. ".txt"
-            local dataContent = string.format("닉네임: %s\n비밀번호: %s\n아이디: %s", inputNick, inputPW, idInput.Text)
-            
-            writefile(fileName, dataContent)
-        end)
-        
-        loginBtn.Text = "저장 성공! (내부 폴더)"
-    else
-        loginBtn.Text = "실행기 권한 없음 (파일저장 실패)"
-        warn("이 실행기는 writefile을 지원하지 않습니다.")
-    end
-
-    task.wait(2)
-    mainHub.Visible = false
-    openBtn.Visible = true
-end)
-
--- 3. 열기/닫기 토글
-closeBtn.MouseButton1Click:Connect(function()
-    mainHub.Visible = false
-    openBtn.Visible = true
-end)
-
-openBtn.MouseButton1Click:Connect(function()
-    mainHub.Visible = true
-    openBtn.Visible = false
-end)
+task.spawn(startLoading)
 
