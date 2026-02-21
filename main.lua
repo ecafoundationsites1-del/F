@@ -132,3 +132,4 @@ submitBtn.MouseButton1Click:Connect(function()
 		submitBtn.Text = "인증하기"
 	end
 end)
+
