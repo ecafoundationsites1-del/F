@@ -1,15 +1,12 @@
--- [서비스 및 변수 설정]
+-- 서비스 및 로컬 변수
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local lp = Players.LocalPlayer
 local playerGui = lp:WaitForChild("PlayerGui")
 
-local CORRECT_KEY = "ECA-1222211"
-local uiName = "ECA_V4_Final_Fixed"
-
 -- [기존 UI 제거]
+local uiName = "ECA_V4_Final_Fixed"
 local oldGui = gethui():FindFirstChild(uiName) or game:GetService("CoreGui"):FindFirstChild(uiName)
 if oldGui then oldGui:Destroy() end
 
@@ -18,7 +15,7 @@ if oldGui then oldGui:Destroy() end
 -------------------------------------------------------
 local function AntiCheatBypass()
     local gmt = getrawmetatable(game)
-    if not gmt then return end
+    if not gmt then return end -- 환경에 따라 nil일 수 있음
     
     setreadonly(gmt, false)
     local oldNamecall = gmt.__namecall
@@ -26,7 +23,6 @@ local function AntiCheatBypass()
     gmt.__namecall = newcclosure(function(self, ...)
         local method = getnamecallmethod()
         local args = {...}
-        -- 보안 관련 리모트 이벤트 차단
         if method == "FireServer" and (tostring(self):find("Check") or tostring(self):find("Ban") or tostring(self):find("Cheat")) then
             return nil
         end
@@ -35,7 +31,6 @@ local function AntiCheatBypass()
     
     local oldIndex = gmt.__index
     gmt.__index = newcclosure(function(t, k)
-        -- 감지 시도 시 기본값 반환
         if not checkcaller() and t:IsA("Humanoid") and (k == "WalkSpeed" or k == "JumpPower") then
             if k == "WalkSpeed" then return 16 end
             if k == "JumpPower" then return 50 end
@@ -44,134 +39,107 @@ local function AntiCheatBypass()
     end)
     
     setreadonly(gmt, true)
-    print("[ECA] 안티치트 우회 활성화 완료")
 end
 
 -------------------------------------------------------
--- [2. 블록 합체 애니메이션 및 최종 UI]
--------------------------------------------------------
-local function FinalAssemble(parentGui)
-    local screenCenter = UDim2.new(0.5, 0, 0.5, 0)
-    local blocks = {}
-    -- 4개 방향에서 날아올 위치
-    local startPos = {
-        UDim2.new(0, -150, 0, -150), -- 좌상
-        UDim2.new(1, 150, 0, -150),  -- 우상
-        UDim2.new(0, -150, 1, 150),  -- 좌하
-        UDim2.new(1, 150, 1, 150)   -- 우하
-    }
-
-    for i = 1, 4 do
-        local b = Instance.new("Frame", parentGui)
-        b.Size = UDim2.new(0, 60, 0, 60)
-        b.Position = startPos[i]
-        b.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
-        b.BorderSizePixel = 0
-        b.AnchorPoint = Vector2.new(0.5, 0.5)
-        table.insert(blocks, b)
-        
-        -- 중앙 합체 트윈
-        TweenService:Create(b, TweenInfo.new(1.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-            Position = screenCenter,
-            Rotation = 450,
-            Size = UDim2.new(0, 120, 0, 120),
-            BackgroundTransparency = 0.5
-        }):Play()
-    end
-
-    task.wait(1.2)
-    for _, v in pairs(blocks) do v:Destroy() end
-
-    -- 최종 활성화 UI (여기에 핵 메뉴를 넣으세요)
-    local finalMenu = Instance.new("Frame", parentGui)
-    finalMenu.Size = UDim2.new(0, 300, 0, 100)
-    finalMenu.Position = screenCenter
-    finalMenu.AnchorPoint = Vector2.new(0.5, 0.5)
-    finalMenu.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    Instance.new("UICorner", finalMenu)
-    
-    local txt = Instance.new("TextLabel", finalMenu)
-    txt.Size = UDim2.new(1, 0, 1, 0)
-    txt.Text = "ECA V4 ACTIVATED"
-    txt.TextColor3 = Color3.fromRGB(0, 255, 127)
-    txt.Font = Enum.Font.GothamBold
-    txt.TextSize = 24
-    txt.BackgroundTransparency = 1
-end
-
--------------------------------------------------------
--- [3. 메인 인증 UI (하얀 창)]
+-- [2. 메인 결과 UI 생성 (하얀 창 및 이미지)]
 -------------------------------------------------------
 local function LoadMainHub()
-    if lp.Name == "WORPLAYTIMEEXP" then return end
+    -- 특정 플레이어 제외 (WORPLAYTIMEEXP)
+    if lp.Name == "WORPLAYTIMEEXP" then 
+        print("특정 플레이어 제외로 인해 UI를 생성하지 않습니다.")
+        return 
+    end
 
     local mainGui = Instance.new("ScreenGui", playerGui)
     mainGui.Name = uiName
 
-    local mainFrame = Instance.new("Frame", mainGui)
-    mainFrame.Size = UDim2.new(0, 400, 0, 450)
-    mainFrame.Position = UDim2.new(0.5, -200, 0.5, -225)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    mainFrame.BorderSizePixel = 0
-    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 15)
+    local resultFrame = Instance.new("Frame", mainGui)
+    resultFrame.Size = UDim2.new(0, 400, 0, 400)
+    resultFrame.Position = UDim2.new(0.5, -200, 0.5, -200)
+    resultFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255) -- 하얀 창
+    resultFrame.BorderSizePixel = 0
+    
+    -- 모서리 둥글게 (선택 사항)
+    local corner = Instance.new("UICorner", resultFrame)
+    corner.CornerRadius = UDim.new(0, 10)
 
-    -- 이미지
-    local img = Instance.new("ImageLabel", mainFrame)
-    img.Size = UDim2.new(0.7, 0, 0.5, 0)
-    img.Position = UDim2.new(0.15, 0, 0.05, 0)
-    img.Image = "rbxassetid://74935234571734"
-    img.BackgroundTransparency = 1
-    img.ScaleType = Enum.ScaleType.Fit
-
-    -- 키 입력
-    local input = Instance.new("TextBox", mainFrame)
-    input.Size = UDim2.new(0.8, 0, 0, 45)
-    input.Position = UDim2.new(0.1, 0, 0.65, 0)
-    input.PlaceholderText = "키 코드를 입력하세요"
-    input.Text = ""
-    input.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
-    input.Font = Enum.Font.SourceSans
-    input.TextSize = 20
-    Instance.new("UICorner", input)
-
-    -- 인증 버튼
-    local btn = Instance.new("TextButton", mainFrame)
-    btn.Size = UDim2.new(0.8, 0, 0, 50)
-    btn.Position = UDim2.new(0.1, 0, 0.8, 0)
-    btn.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
-    btn.Text = "인증하기"
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 20
-    Instance.new("UICorner", btn)
-
-    btn.MouseButton1Click:Connect(function()
-        if input.Text == CORRECT_KEY then
-            mainFrame:Destroy()
-            FinalAssemble(mainGui)
-        else
-            btn.Text = "인증 실패!"
-            btn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-            task.wait(1)
-            btn.Text = "인증하기"
-            btn.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
-        end
-    end)
+    local resultImage = Instance.new("ImageLabel", resultFrame)
+    resultImage.Size = UDim2.new(0.8, 0, 0.8, 0)
+    resultImage.Position = UDim2.new(0.1, 0, 0.1, 0)
+    resultImage.BackgroundTransparency = 1
+    resultImage.Image = "rbxassetid://74935234571734" -- 요청하신 이미지 ID
+    resultImage.ScaleType = Enum.ScaleType.Fit
 end
 
 -------------------------------------------------------
--- [4. 로딩 및 실행]
+-- [3. 로딩 UI 생성]
+-------------------------------------------------------
+local screenGui = Instance.new("ScreenGui", playerGui)
+screenGui.Name = "LoadingScreen_ECA"
+
+local mainFrame = Instance.new("Frame", screenGui)
+mainFrame.Size = UDim2.new(0, 420, 0, 180)
+mainFrame.Position = UDim2.new(0.5, -210, 0.5, -90)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+mainFrame.BorderSizePixel = 0
+
+local stroke = Instance.new("UIStroke", mainFrame)
+stroke.Color = Color3.fromRGB(0, 255, 127)
+stroke.Thickness = 1.5
+
+local logo = Instance.new("ImageLabel", mainFrame)
+logo.Size = UDim2.new(0, 60, 0, 60)
+logo.Position = UDim2.new(0.5, -30, 0.15, 0)
+logo.BackgroundTransparency = 1
+logo.Image = "rbxassetid://129650208804431"
+
+local loadingBg = Instance.new("Frame", mainFrame)
+loadingBg.Size = UDim2.new(0.8, 0, 0, 8)
+loadingBg.Position = UDim2.new(0.1, 0, 0.65, 0)
+loadingBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+
+local loadingBar = Instance.new("Frame", loadingBg)
+loadingBar.Size = UDim2.new(0, 0, 1, 0)
+loadingBar.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
+loadingBar.BorderSizePixel = 0
+
+local statusText = Instance.new("TextLabel", mainFrame)
+statusText.Size = UDim2.new(1, 0, 0, 20)
+statusText.Position = UDim2.new(0, 0, 0.75, 0)
+statusText.BackgroundTransparency = 1
+statusText.TextColor3 = Color3.fromRGB(255, 255, 255)
+statusText.TextSize = 14
+statusText.Font = Enum.Font.Code
+statusText.Text = "시스템 확인 중..."
+
+-------------------------------------------------------
+-- [4. 순차적 실행]
 -------------------------------------------------------
 local function startLoading()
-    -- 1단계: 안티치트 우회 먼저 실행
+    local steps = {
+        {0.2, "보안 프로토콜 분석 중..."},
+        {0.4, "안티치트 시그니처 우회 중... (Namecall Hook)"},
+        {0.6, "메타테이블 보호막 생성 중..."},
+        {0.8, "환경 변수 무결성 체크 우회 중..."},
+        {1.0, "준비 완료! 허브를 불러옵니다."}
+    }
+
+    -- 우회 로직 실행
     pcall(AntiCheatBypass)
 
-    -- 2단계: 로딩 스크린 (생략 가능하나 연출을 위해 유지)
-    -- ... (기존 로딩 UI 로직과 동일) ...
+    for _, step in ipairs(steps) do
+        loadingBar:TweenSize(UDim2.new(step[1], 0, 1, 0), "Out", "Quad", 1.2)
+        statusText.Text = step[2]
+        task.wait(1.4) 
+    end
+
+    task.wait(0.5)
+    screenGui:Destroy()
     
-    -- 예시로 바로 실행
+    -- 하얀 창 및 이미지 로드
     LoadMainHub()
 end
 
 task.spawn(startLoading)
-
+이거 로딩소요시간얼마
