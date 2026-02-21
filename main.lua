@@ -11,22 +11,21 @@ local oldGui = gethui():FindFirstChild(uiName) or game:GetService("CoreGui"):Fin
 if oldGui then oldGui:Destroy() end
 
 -------------------------------------------------------
--- [1. 안티치트 우회 시스템 (Bypass Logic)]
+-- [1. 안티치트 우회 시스템] (기존 로직 유지)
 -------------------------------------------------------
 local function AntiCheatBypass()
     local gmt = getrawmetatable(game)
-    if not gmt then return end -- 환경에 따라 nil일 수 있음
+    if not gmt then return end 
     
     setreadonly(gmt, false)
     local oldNamecall = gmt.__namecall
 
     gmt.__namecall = newcclosure(function(self, ...)
         local method = getnamecallmethod()
-        local args = {...}
         if method == "FireServer" and (tostring(self):find("Check") or tostring(self):find("Ban") or tostring(self):find("Cheat")) then
             return nil
         end
-        return oldNamecall(self, unpack(args))
+        return oldNamecall(self, unpack({...}))
     end)
     
     local oldIndex = gmt.__index
@@ -42,38 +41,81 @@ local function AntiCheatBypass()
 end
 
 -------------------------------------------------------
--- [2. 메인 결과 UI 생성 (하얀 창 및 이미지)]
+-- [2. 메인 허브 및 키 시스템 UI]
 -------------------------------------------------------
 local function LoadMainHub()
-    -- 특정 플레이어 제외 (WORPLAYTIMEEXP)
-    if lp.Name == "WORPLAYTIMEEXP" then 
-        print("특정 플레이어 제외로 인해 UI를 생성하지 않습니다.")
-        return 
-    end
+    if lp.Name == "WORPLAYTIMEEXP" then return end
 
     local mainGui = Instance.new("ScreenGui", playerGui)
     mainGui.Name = uiName
 
+    -- 메인 프레임 (하얀 창)
     local resultFrame = Instance.new("Frame", mainGui)
-    resultFrame.Size = UDim2.new(0, 400, 0, 400)
-    resultFrame.Position = UDim2.new(0.5, -200, 0.5, -200)
-    resultFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255) -- 하얀 창
+    resultFrame.Size = UDim2.new(0, 400, 0, 450) -- 키 시스템 공간을 위해 높이 조절
+    resultFrame.Position = UDim2.new(0.5, -200, 0.5, -225)
+    resultFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     resultFrame.BorderSizePixel = 0
-    
-    -- 모서리 둥글게 (선택 사항)
-    local corner = Instance.new("UICorner", resultFrame)
-    corner.CornerRadius = UDim.new(0, 10)
+    Instance.new("UICorner", resultFrame).CornerRadius = UDim.new(0, 10)
 
+    -- 상단 이미지
     local resultImage = Instance.new("ImageLabel", resultFrame)
-    resultImage.Size = UDim2.new(0.8, 0, 0.8, 0)
-    resultImage.Position = UDim2.new(0.1, 0, 0.1, 0)
+    resultImage.Size = UDim2.new(0, 320, 0, 240)
+    resultImage.Position = UDim2.new(0.5, -160, 0.05, 0)
     resultImage.BackgroundTransparency = 1
-    resultImage.Image = "rbxassetid://74935234571734" -- 요청하신 이미지 ID
+    resultImage.Image = "rbxassetid://74935234571734"
     resultImage.ScaleType = Enum.ScaleType.Fit
+
+    -- [키 시스템 UI 요소]
+    local correctKey = "ECA-9123"
+
+    local keyInput = Instance.new("TextBox", resultFrame)
+    keyInput.Name = "KeyInput"
+    keyInput.Size = UDim2.new(0.7, 0, 0, 40)
+    keyInput.Position = UDim2.new(0.15, 0, 0.65, 0)
+    keyInput.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
+    keyInput.PlaceholderText = "여기에 키를 입력하세요..."
+    keyInput.Text = ""
+    keyInput.Font = Enum.Font.SourceSans
+    keyInput.TextSize = 18
+    Instance.new("UICorner", keyInput).CornerRadius = UDim.new(0, 5)
+
+    local submitBtn = Instance.new("TextButton", resultFrame)
+    submitBtn.Size = UDim2.new(0.7, 0, 0, 40)
+    submitBtn.Position = UDim2.new(0.15, 0, 0.78, 0)
+    submitBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
+    submitBtn.Text = "인증하기"
+    submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    submitBtn.Font = Enum.Font.SourceSansBold
+    submitBtn.TextSize = 20
+    Instance.new("UICorner", submitBtn).CornerRadius = UDim.new(0, 5)
+
+    local infoText = Instance.new("TextLabel", resultFrame)
+    infoText.Size = UDim2.new(1, 0, 0, 30)
+    infoText.Position = UDim2.new(0, 0, 0.9, 0)
+    infoText.BackgroundTransparency = 1
+    infoText.Text = "키를 기다리는 중..."
+    infoText.TextColor3 = Color3.fromRGB(100, 100, 100)
+    infoText.Font = Enum.Font.SourceSansItalic
+    infoText.TextSize = 14
+
+    -- 키 검증 로직
+    submitBtn.MouseButton1Click:Connect(function()
+        if keyInput.Text == correctKey then
+            infoText.Text = "✅ 인증 성공! 시스템을 활성화합니다."
+            infoText.TextColor3 = Color3.fromRGB(0, 180, 0)
+            task.wait(1)
+            -- 여기에 인증 후 실행될 기능을 추가하세요.
+            print("Access Granted.")
+        else
+            infoText.Text = "❌ 잘못된 키입니다. 다시 확인해주세요."
+            infoText.TextColor3 = Color3.fromRGB(255, 0, 0)
+            keyInput.Text = ""
+        end
+    end)
 end
 
 -------------------------------------------------------
--- [3. 로딩 UI 생성]
+-- [3. 로딩 UI 생성] (기존 로직 유지)
 -------------------------------------------------------
 local screenGui = Instance.new("ScreenGui", playerGui)
 screenGui.Name = "LoadingScreen_ECA"
@@ -82,11 +124,7 @@ local mainFrame = Instance.new("Frame", screenGui)
 mainFrame.Size = UDim2.new(0, 420, 0, 180)
 mainFrame.Position = UDim2.new(0.5, -210, 0.5, -90)
 mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-mainFrame.BorderSizePixel = 0
-
-local stroke = Instance.new("UIStroke", mainFrame)
-stroke.Color = Color3.fromRGB(0, 255, 127)
-stroke.Thickness = 1.5
+Instance.new("UIStroke", mainFrame).Color = Color3.fromRGB(0, 255, 127)
 
 local logo = Instance.new("ImageLabel", mainFrame)
 logo.Size = UDim2.new(0, 60, 0, 60)
@@ -119,13 +157,11 @@ statusText.Text = "시스템 확인 중..."
 local function startLoading()
     local steps = {
         {0.2, "보안 프로토콜 분석 중..."},
-        {0.4, "안티치트 시그니처 우회 중... (Namecall Hook)"},
-        {0.6, "메타테이블 보호막 생성 중..."},
+        {0.4, "안티치트 시그니처 우회 중..."},
         {0.8, "환경 변수 무결성 체크 우회 중..."},
-        {1.0, "준비 완료! 허브를 불러옵니다."}
+        {1.0, "준비 완료!"}
     }
 
-    -- 우회 로직 실행
     pcall(AntiCheatBypass)
 
     for _, step in ipairs(steps) do
@@ -136,10 +172,8 @@ local function startLoading()
 
     task.wait(0.5)
     screenGui:Destroy()
-    
-    -- 하얀 창 및 이미지 로드
     LoadMainHub()
 end
 
 task.spawn(startLoading)
-이거 로딩소요시간얼마
+
